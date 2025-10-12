@@ -1,0 +1,16 @@
+[package]
+name = "mem"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+bytemuck = { workspace = true }
+thiserror = { workspace = true }
+
+memmap2 = { version = "0.9", default-features = false, optional = true }
+tempfile = { version = "3.22", features = ["getrandom"], optional = true }
+
+[features]
+std = ["thiserror/std"]
+memmap = ["dep:memmap2"]
+tempfile = ["dep:tempfile", "memmap"]
