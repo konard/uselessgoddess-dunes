@@ -8,43 +8,24 @@ use {
   },
 };
 
-/// A memory allocator using stable Rust's allocation API
-///
-/// This implementation provides dynamic memory allocation using
-/// `std::alloc::{alloc, realloc, dealloc}` which are stable APIs.
-///
-/// # Examples
-///
-/// ```
-/// # use mem::{Alloc, RawMem};
-/// let mut alloc = Alloc::<u64>::new();
-/// let page = alloc.grow(10).unwrap();
-/// let data = page.zeroed();
-/// assert_eq!(data.len(), 10);
-/// assert_eq!(data, &[0u64; 10]);
-/// ```
 pub struct Alloc<T> {
   place: RawPlace<T>,
   cap: usize,
 }
 
 impl<T> Alloc<T> {
-  /// Creates a new empty allocator
   pub const fn new() -> Self {
     Self { place: RawPlace::dangling(), cap: 0 }
   }
 
-  /// Returns the current capacity
   pub fn capacity(&self) -> usize {
     self.cap
   }
 
-  /// Returns the current length (number of initialized elements)
   pub fn len(&self) -> usize {
     self.place.len()
   }
 
-  /// Returns true if the allocator has no initialized elements
   pub fn is_empty(&self) -> bool {
     self.len() == 0
   }
@@ -79,22 +60,17 @@ impl<T: Pod> RawMem for Alloc<T> {
       Layout::array::<T>(new_cap).map_err(|_| Error::CapacityOverflow)?;
 
     let ptr = if old_cap == 0 {
-      // Initial allocation
-      // SAFETY: layout has non-zero size (new_cap > 0)
+      // SAFETY: layout has non-zero size since new_cap > 0
       let ptr = unsafe { alloc::alloc(layout) };
       if ptr.is_null() {
         return Err(Error::AllocError { layout, non_exhaustive: () });
       }
       ptr
     } else {
-      // Reallocation
       let old_layout =
         Layout::array::<T>(old_cap).map_err(|_| Error::CapacityOverflow)?;
 
-      // SAFETY:
-      // - self.place.ptr points to currently allocated memory
-      // - old_layout matches the previous allocation
-      // - new_layout.size() >= old_layout.size()
+      // SAFETY: reallocating with matching old_layout and growing to larger size
       let ptr = unsafe {
         let old_ptr = self.place.as_mut_slice().as_mut_ptr() as *mut u8;
         alloc::realloc(old_ptr, old_layout, layout.size())
@@ -124,9 +100,7 @@ impl<T: Pod> RawMem for Alloc<T> {
         let layout =
           Layout::array::<T>(self.cap).map_err(|_| Error::CapacityOverflow)?;
 
-        // SAFETY:
-        // - ptr was allocated with this layout
-        // - we're about to set cap to 0
+        // SAFETY: deallocating with matching layout before resetting to dangling
         unsafe {
           let ptr = self.place.as_mut_slice().as_mut_ptr() as *mut u8;
           alloc::dealloc(ptr, layout);
@@ -137,15 +111,12 @@ impl<T: Pod> RawMem for Alloc<T> {
       return Ok(());
     }
 
-    // Shrink to new capacity
     let old_layout =
       Layout::array::<T>(self.cap).map_err(|_| Error::CapacityOverflow)?;
     let new_layout =
       Layout::array::<T>(new_cap).map_err(|_| Error::CapacityOverflow)?;
 
-    // SAFETY:
-    // - ptr was allocated with old_layout
-    // - new_layout.size() <= old_layout.size()
+    // SAFETY: reallocating with matching old_layout and shrinking to smaller size
     let ptr = unsafe {
       let old_ptr = self.place.as_mut_slice().as_mut_ptr() as *mut u8;
       alloc::realloc(old_ptr, old_layout, new_layout.size())
@@ -165,11 +136,8 @@ impl<T: Pod> RawMem for Alloc<T> {
 impl<T> Drop for Alloc<T> {
   fn drop(&mut self) {
     if self.cap > 0 {
-      // SAFETY: We have a valid layout for the current capacity
       if let Ok(layout) = Layout::array::<T>(self.cap) {
-        // SAFETY:
-        // - ptr was allocated with this layout
-        // - we're in Drop so this is the final cleanup
+        // SAFETY: deallocating with matching layout during final cleanup
         unsafe {
           let ptr = self.place.as_mut_slice().as_mut_ptr() as *mut u8;
           alloc::dealloc(ptr, layout);
@@ -193,48 +161,3 @@ impl<T> fmt::Debug for Alloc<T> {
 unsafe impl<T: Send> Send for Alloc<T> {}
 // SAFETY: Alloc provides exclusive access to its data
 unsafe impl<T: Sync> Sync for Alloc<T> {}
-
-#[cfg(test)]
-mod tests {
-  use super::*;
-
-  #[test]
-  fn test_new() {
-    let alloc = Alloc::<u64>::new();
-    assert_eq!(alloc.len(), 0);
-    assert_eq!(alloc.capacity(), 0);
-    assert!(alloc.is_empty());
-  }
-
-  #[test]
-  fn test_grow_and_shrink() -> Result<()> {
-    let mut alloc = Alloc::<u64>::new();
-
-    // Grow
-    alloc.grow(10)?.zeroed();
-    assert_eq!(alloc.len(), 10);
-    assert_eq!(alloc.capacity(), 10);
-
-    // Shrink
-    alloc.shrink(5)?;
-    assert_eq!(alloc.capacity(), 5);
-
-    Ok(())
-  }
-
-  #[test]
-  fn test_zeroed() -> Result<()> {
-    let mut alloc = Alloc::<u64>::new();
-    let data = alloc.grow(5)?.zeroed();
-    assert_eq!(data, &[0u64; 5]);
-    Ok(())
-  }
-
-  #[test]
-  fn test_filled() -> Result<()> {
-    let mut alloc = Alloc::<i32>::new();
-    let data = alloc.grow(3)?.filled(42);
-    assert_eq!(data, &[42, 42, 42]);
-    Ok(())
-  }
-}

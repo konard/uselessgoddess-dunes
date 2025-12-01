@@ -136,54 +136,42 @@ fn test_different_types<M: RawMem<Item = u8>>(mut mem: M) -> Result {
   Ok(())
 }
 
-// Tests for Alloc implementation
-#[test]
-fn alloc_invariants() -> Result {
-  test_invariants(Alloc::<u64>::new())
+macro_rules! gen_tests {
+  (
+    alloc: { $($test_name:ident => $test_fn:ident : $ty:ty),* $(,)? }
+    prealloc: { $($ptest_name:ident => $ptest_fn:ident : $pty:ty, $size:expr),* $(,)? }
+  ) => {
+    $(
+      #[test]
+      fn $test_name() -> Result {
+        $test_fn(Alloc::<$ty>::new())
+      }
+    )*
+
+    $(
+      #[test]
+      fn $ptest_name() -> Result {
+        let mut buf = [<$pty as Default>::default(); $size];
+        $ptest_fn(PreAlloc::new(&mut buf[..]))
+      }
+    )*
+  };
 }
 
-#[test]
-fn alloc_grow_shrink_cycles() -> Result {
-  test_grow_shrink_cycles(Alloc::<i32>::new())
-}
-
-#[test]
-fn alloc_edge_cases() -> Result {
-  test_edge_cases(Alloc::<u8>::new())
-}
-
-#[test]
-fn alloc_mutability() -> Result {
-  test_mutability(Alloc::<u32>::new())
-}
-
-#[test]
-fn alloc_large_allocation() -> Result {
-  test_large_allocation(Alloc::<u64>::new())
-}
-
-#[test]
-fn alloc_different_types() -> Result {
-  test_different_types(Alloc::<u8>::new())
-}
-
-// Tests for PreAlloc implementation
-#[test]
-fn prealloc_invariants() -> Result {
-  let mut buf = [0u64; 100];
-  test_invariants(PreAlloc::new(&mut buf[..]))
-}
-
-#[test]
-fn prealloc_mutability() -> Result {
-  let mut buf = [0u32; 100];
-  test_mutability(PreAlloc::new(&mut buf[..]))
-}
-
-#[test]
-fn prealloc_edge_cases() -> Result {
-  let mut buf = [0u8; 100];
-  test_edge_cases(PreAlloc::new(&mut buf[..]))
+gen_tests! {
+  alloc: {
+    alloc_invariants => test_invariants: u64,
+    alloc_grow_shrink_cycles => test_grow_shrink_cycles: i32,
+    alloc_edge_cases => test_edge_cases: u8,
+    alloc_mutability => test_mutability: u32,
+    alloc_large_allocation => test_large_allocation: u64,
+    alloc_different_types => test_different_types: u8,
+  }
+  prealloc: {
+    prealloc_invariants => test_invariants: u64, 100,
+    prealloc_mutability => test_mutability: u32, 100,
+    prealloc_edge_cases => test_edge_cases: u8, 100,
+  }
 }
 
 // Test PreAlloc overflow behavior
