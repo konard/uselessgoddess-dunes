@@ -6,7 +6,7 @@ use {
 type Result = std::result::Result<(), Box<dyn Error>>;
 
 /// Test invariants that must hold for any RawMem implementation
-fn test_invariants<M: RawMem<Item = u64>>(mut mem: M) -> Result {
+fn invariants<M: RawMem<Item = u64>>(mut mem: M) -> Result {
   // Initial state: empty
   assert_eq!(mem.as_slice().len(), 0);
 
@@ -34,7 +34,7 @@ fn test_invariants<M: RawMem<Item = u64>>(mut mem: M) -> Result {
 }
 
 /// Test grow/shrink cycle behavior
-fn test_grow_shrink_cycles<M: RawMem<Item = i32>>(mut mem: M) -> Result {
+fn grow_shrink_cycles<M: RawMem<Item = i32>>(mut mem: M) -> Result {
   const CYCLES: usize = 100;
   const SIZE: usize = if cfg!(miri) { 10 } else { 100 };
 
@@ -68,7 +68,7 @@ fn test_grow_shrink_cycles<M: RawMem<Item = i32>>(mut mem: M) -> Result {
 }
 
 /// Test edge cases like zero-sized operations
-fn test_edge_cases<M: RawMem<Item = u8>>(mut mem: M) -> Result {
+fn edge_cases<M: RawMem<Item = u8>>(mut mem: M) -> Result {
   // Grow by 0 should be a no-op
   mem.grow(0)?.zeroed();
   assert_eq!(mem.as_slice().len(), 0);
@@ -89,7 +89,7 @@ fn test_edge_cases<M: RawMem<Item = u8>>(mut mem: M) -> Result {
 }
 
 /// Test that as_mut_slice actually allows mutation
-fn test_mutability<M: RawMem<Item = u32>>(mut mem: M) -> Result {
+fn mutability<M: RawMem<Item = u32>>(mut mem: M) -> Result {
   mem.grow(10)?.zeroed();
 
   // Mutate through as_mut_slice
@@ -106,7 +106,7 @@ fn test_mutability<M: RawMem<Item = u32>>(mut mem: M) -> Result {
 }
 
 /// Test large allocations (stress test)
-fn test_large_allocation<M: RawMem<Item = u64>>(mut mem: M) -> Result {
+fn large_allocation<M: RawMem<Item = u64>>(mut mem: M) -> Result {
   const LARGE: usize = if cfg!(miri) { 1000 } else { 100_000 };
 
   mem.grow(LARGE)?.filled(0xDEADBEEF);
@@ -120,7 +120,7 @@ fn test_large_allocation<M: RawMem<Item = u64>>(mut mem: M) -> Result {
 }
 
 /// Test with various Pod types
-fn test_different_types<M: RawMem<Item = u8>>(mut mem: M) -> Result {
+fn different_types<M: RawMem<Item = u8>>(mut mem: M) -> Result {
   mem.grow(256)?.zeroed();
 
   // Fill with pattern
@@ -160,17 +160,17 @@ macro_rules! gen_tests {
 
 gen_tests! {
   alloc: {
-    alloc_invariants => test_invariants: u64,
-    alloc_grow_shrink_cycles => test_grow_shrink_cycles: i32,
-    alloc_edge_cases => test_edge_cases: u8,
-    alloc_mutability => test_mutability: u32,
-    alloc_large_allocation => test_large_allocation: u64,
-    alloc_different_types => test_different_types: u8,
+    alloc_invariants_u64 => invariants: u64,
+    alloc_grow_shrink_cycles_i32 => grow_shrink_cycles: i32,
+    alloc_edge_cases_u8 => edge_cases: u8,
+    alloc_mutability_u32 => mutability: u32,
+    alloc_large_allocation_u64 => large_allocation: u64,
+    alloc_different_types_u8 => different_types: u8,
   }
   prealloc: {
-    prealloc_invariants => test_invariants: u64, 100,
-    prealloc_mutability => test_mutability: u32, 100,
-    prealloc_edge_cases => test_edge_cases: u8, 100,
+    prealloc_invariants_u64 => invariants: u64, 100,
+    prealloc_mutability_u32 => mutability: u32, 100,
+    prealloc_edge_cases_u8 => edge_cases: u8, 100,
   }
 }
 
@@ -190,14 +190,14 @@ fn prealloc_overgrow() {
 
 // Test capacity overflow
 #[test]
-fn test_capacity_overflow() {
+fn capacity_overflow() {
   let mut alloc = Alloc::<u64>::new();
   assert!(alloc.grow(usize::MAX).is_err());
 }
 
 // Test interleaved operations
 #[test]
-fn test_interleaved_ops() -> Result {
+fn interleaved_ops() -> Result {
   let mut alloc = Alloc::<i64>::new();
 
   alloc.grow(5)?.filled(1);
@@ -215,7 +215,7 @@ fn test_interleaved_ops() -> Result {
 
 // Test zeroed initialization
 #[test]
-fn test_zeroed_initialization() -> Result {
+fn zeroed_initialization() -> Result {
   let mut alloc = Alloc::<[u8; 16]>::new();
 
   let data = alloc.grow(100)?.zeroed();
@@ -229,7 +229,7 @@ fn test_zeroed_initialization() -> Result {
 
 // Test filled initialization with Clone type
 #[test]
-fn test_filled_initialization() -> Result {
+fn filled_initialization() -> Result {
   let mut alloc = Alloc::<i32>::new();
 
   let data = alloc.grow(50)?.filled(-42);

@@ -1,6 +1,5 @@
 use std::fmt::Debug;
 
-mod alloc;
 mod miri;
 mod pre;
 
