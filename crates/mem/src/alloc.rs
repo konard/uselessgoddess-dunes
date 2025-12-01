@@ -1,5 +1,5 @@
 use {
-  crate::{place::RawPlace, Error, Page, RawMem, Result},
+  crate::{Error, Page, RawMem, Result, place::RawPlace},
   bytemuck::Pod,
   std::{
     alloc::{self, Layout},
@@ -75,23 +75,21 @@ impl<T: Pod> RawMem for Alloc<T> {
       self.cap.checked_add(addition).ok_or(Error::CapacityOverflow)?;
 
     // Check if new capacity exceeds layout limits
-    let layout = Layout::array::<T>(new_cap).map_err(|_| Error::CapacityOverflow)?;
+    let layout =
+      Layout::array::<T>(new_cap).map_err(|_| Error::CapacityOverflow)?;
 
     let ptr = if old_cap == 0 {
       // Initial allocation
       // SAFETY: layout has non-zero size (new_cap > 0)
       let ptr = unsafe { alloc::alloc(layout) };
       if ptr.is_null() {
-        return Err(Error::AllocError {
-          layout,
-          non_exhaustive: (),
-        });
+        return Err(Error::AllocError { layout, non_exhaustive: () });
       }
       ptr
     } else {
       // Reallocation
-      let old_layout = Layout::array::<T>(old_cap)
-        .map_err(|_| Error::CapacityOverflow)?;
+      let old_layout =
+        Layout::array::<T>(old_cap).map_err(|_| Error::CapacityOverflow)?;
 
       // SAFETY:
       // - self.place.ptr points to currently allocated memory
@@ -103,10 +101,7 @@ impl<T: Pod> RawMem for Alloc<T> {
       };
 
       if ptr.is_null() {
-        return Err(Error::AllocError {
-          layout,
-          non_exhaustive: (),
-        });
+        return Err(Error::AllocError { layout, non_exhaustive: () });
       }
       ptr
     };
@@ -114,9 +109,8 @@ impl<T: Pod> RawMem for Alloc<T> {
     self.cap = new_cap;
 
     // SAFETY: ptr is valid for new_cap elements
-    let uninit: &mut [MaybeUninit<T>] = unsafe {
-      slice::from_raw_parts_mut(ptr as *mut MaybeUninit<T>, new_cap)
-    };
+    let uninit: &mut [MaybeUninit<T>] =
+      unsafe { slice::from_raw_parts_mut(ptr as *mut MaybeUninit<T>, new_cap) };
 
     Ok(self.place.grow(uninit))
   }
@@ -127,8 +121,8 @@ impl<T: Pod> RawMem for Alloc<T> {
     if new_cap == 0 {
       // Deallocate everything
       if self.cap > 0 {
-        let layout = Layout::array::<T>(self.cap)
-          .map_err(|_| Error::CapacityOverflow)?;
+        let layout =
+          Layout::array::<T>(self.cap).map_err(|_| Error::CapacityOverflow)?;
 
         // SAFETY:
         // - ptr was allocated with this layout
@@ -144,10 +138,10 @@ impl<T: Pod> RawMem for Alloc<T> {
     }
 
     // Shrink to new capacity
-    let old_layout = Layout::array::<T>(self.cap)
-      .map_err(|_| Error::CapacityOverflow)?;
-    let new_layout = Layout::array::<T>(new_cap)
-      .map_err(|_| Error::CapacityOverflow)?;
+    let old_layout =
+      Layout::array::<T>(self.cap).map_err(|_| Error::CapacityOverflow)?;
+    let new_layout =
+      Layout::array::<T>(new_cap).map_err(|_| Error::CapacityOverflow)?;
 
     // SAFETY:
     // - ptr was allocated with old_layout
@@ -158,10 +152,7 @@ impl<T: Pod> RawMem for Alloc<T> {
     };
 
     if ptr.is_null() {
-      return Err(Error::AllocError {
-        layout: new_layout,
-        non_exhaustive: (),
-      });
+      return Err(Error::AllocError { layout: new_layout, non_exhaustive: () });
     }
 
     self.cap = new_cap;
