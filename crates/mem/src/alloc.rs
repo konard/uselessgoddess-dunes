@@ -136,8 +136,6 @@ impl<T: Pod> RawMem for Alloc<T> {
     let uninit: &mut [MaybeUninit<T>] =
       unsafe { slice::from_raw_parts_mut(ptr as *mut MaybeUninit<T>, new_cap) };
 
-    // Update the RawPlace pointer to the new reallocated memory
-    // This will also clamp the length to new_cap if needed
     self.place.update_ptr(uninit);
 
     Ok(())

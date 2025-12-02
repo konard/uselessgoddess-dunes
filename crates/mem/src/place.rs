@@ -52,7 +52,6 @@ impl<T> RawPlace<T> {
     let new_cap = slice.len();
     // SAFETY: `NonNull` is transparent for this conversion
     self.ptr = unsafe { mem::transmute::<_, NonNull<[T]>>(slice) };
-    // Clamp len to the new capacity
     self.len = self.len.min(new_cap);
   }
 }
