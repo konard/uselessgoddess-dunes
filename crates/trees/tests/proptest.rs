@@ -1,5 +1,8 @@
+mod common;
+
 use {
-  dunes_trees::{SizeBalanced, Store, Tree},
+  common::Store,
+  dunes_trees::{SizeBalanced, Tree},
   proptest::prelude::*,
 };
 

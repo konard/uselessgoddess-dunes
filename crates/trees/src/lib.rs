@@ -2,14 +2,12 @@
 
 mod node;
 mod sbt;
-mod store;
 mod treap;
 mod tree;
 
 pub use {
   node::{Idx, Node},
   sbt::SizeBalanced,
-  store::Store,
-  treap::{Treap, TreapStore},
+  treap::Treap,
   tree::Tree,
 };

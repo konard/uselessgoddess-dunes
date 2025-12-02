@@ -12,5 +12,5 @@ proptest = "1.5"
 criterion = { version = "0.5", features = ["html_reports"] }
 
 [[bench]]
-name = "sbt_bench"
+name = "trees_bench"
 harness = false
