@@ -28,7 +28,8 @@ jobs:
           tool: 'cargo'
           output-file-path: output.txt
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          auto-push: true
+          # Only auto-push on main branch, not PRs
+          auto-push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
           # Show alert with commit comment on detecting possible performance regression
           alert-threshold: '150%'
           comment-on-alert: true
