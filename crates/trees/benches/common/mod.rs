@@ -1,13 +1,13 @@
-use dunes_trees::{Idx, Node, SizeBalanced, Treap, Tree};
+use trees::{Idx, Node, SizeBalanced, Treap, Tree};
 
-/// Simple vector-backed tree store for testing and benchmarking
-/// (SBT implementation)
+/// Vector-backed tree store for testing and benchmarking.
+/// Generic over the tree implementation strategy.
 #[derive(Debug, Clone)]
-pub struct Store<T> {
+pub struct VecStore<T> {
   nodes: Vec<Node<T>>,
 }
 
-impl<T> Store<T> {
+impl<T> VecStore<T> {
   pub fn new(capacity: usize) -> Self {
     Self { nodes: (0..capacity).map(|_| Node::default()).collect() }
   }
@@ -24,7 +24,8 @@ impl<T> Store<T> {
   }
 }
 
-impl<T: Idx> Tree<T> for Store<T> {
+// Base Tree trait implementation (shared by both SBT and Treap)
+impl<T: Idx> Tree<T> for VecStore<T> {
   #[inline(always)]
   fn get(&self, idx: T) -> Option<Node<T>> {
     self.nodes.get(idx.as_usize()).copied()
@@ -52,6 +53,7 @@ impl<T: Idx> Tree<T> for Store<T> {
     first.as_usize() < second.as_usize()
   }
 
+  // Default implementation - will be overridden by strategy traits
   fn insert(&mut self, root: Option<T>, idx: T) -> Option<T> {
     self.insert_sbt(root, idx)
   }
@@ -61,57 +63,52 @@ impl<T: Idx> Tree<T> for Store<T> {
   }
 }
 
-impl<T: Idx> SizeBalanced<T> for Store<T> {}
+// SBT strategy
+impl<T: Idx> SizeBalanced<T> for VecStore<T> {}
 
-/// Vector-backed Treap store for testing and benchmarking
+// Treap strategy - need a newtype to provide different insert/remove
 #[derive(Debug, Clone)]
-pub struct TreapStore<T> {
-  nodes: Vec<Node<T>>,
-}
+pub struct TreapVecStore<T>(VecStore<T>);
 
-impl<T> TreapStore<T> {
+impl<T> TreapVecStore<T> {
   pub fn new(capacity: usize) -> Self {
-    Self { nodes: (0..capacity).map(|_| Node::default()).collect() }
+    Self(VecStore::new(capacity))
   }
 
   #[inline]
   pub fn nodes(&self) -> &[Node<T>] {
-    &self.nodes
+    self.0.nodes()
   }
 
   pub fn reset(&mut self) {
-    for node in &mut self.nodes {
-      *node = Node::default();
-    }
+    self.0.reset()
   }
 }
 
-impl<T: Idx> Tree<T> for TreapStore<T> {
+impl<T: Idx> Tree<T> for TreapVecStore<T> {
   #[inline(always)]
   fn get(&self, idx: T) -> Option<Node<T>> {
-    self.nodes.get(idx.as_usize()).copied()
+    self.0.get(idx)
   }
 
   #[inline(always)]
   fn set(&mut self, idx: T, node: Node<T>) {
-    if let Some(slot) = self.nodes.get_mut(idx.as_usize()) {
-      *slot = node;
-    }
+    self.0.set(idx, node)
   }
 
   #[inline(always)]
   fn left_mut(&mut self, idx: T) -> Option<&mut T> {
-    self.nodes.get_mut(idx.as_usize())?.left.as_mut()
+    self.0.nodes.get_mut(idx.as_usize())?.left.as_mut()
   }
 
   #[inline(always)]
   fn right_mut(&mut self, idx: T) -> Option<&mut T> {
-    self.nodes.get_mut(idx.as_usize())?.right.as_mut()
+    self.0.nodes.get_mut(idx.as_usize())?.right.as_mut()
   }
 
   #[inline(always)]
   fn is_left_of(&self, first: T, second: T) -> bool {
-    first.as_usize() < second.as_usize()
+    self.0.is_left_of(first, second)
   }
 
   fn insert(&mut self, root: Option<T>, idx: T) -> Option<T> {
@@ -123,4 +120,11 @@ impl<T: Idx> Tree<T> for TreapStore<T> {
   }
 }
 
-impl<T: Idx> Treap<T> for TreapStore<T> {}
+impl<T: Idx> Treap<T> for TreapVecStore<T> {}
+
+// Type aliases for convenience
+pub type SbtStore<T> = VecStore<T>;
+pub type TreapStore<T> = TreapVecStore<T>;
+
+// Keep old names for backward compatibility during migration
+pub type Store<T> = VecStore<T>;

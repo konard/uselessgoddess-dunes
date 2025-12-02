@@ -5,8 +5,8 @@ use {
   criterion::{
     BenchmarkId, Criterion, Throughput, criterion_group, criterion_main,
   },
-  dunes_trees::{Idx, Tree},
   std::time::{Duration, Instant},
+  trees::{Idx, Tree},
 };
 
 /// Trait for tree stores that can be reset and created

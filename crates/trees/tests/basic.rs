@@ -1,6 +1,6 @@
 mod common;
 
-use {common::Store, dunes_trees::Tree};
+use {common::Store, trees::Tree};
 
 #[test]
 fn test_single_insert() {
