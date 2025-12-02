@@ -13,6 +13,7 @@ impl<T> VecStore<T> {
   }
 
   #[inline]
+  #[allow(dead_code)]
   pub fn nodes(&self) -> &[Node<T>] {
     &self.nodes
   }
@@ -76,6 +77,7 @@ impl<T> TreapVecStore<T> {
   }
 
   #[inline]
+  #[allow(dead_code)]
   pub fn nodes(&self) -> &[Node<T>] {
     self.0.nodes()
   }
@@ -123,6 +125,7 @@ impl<T: Idx> Tree<T> for TreapVecStore<T> {
 impl<T: Idx> Treap<T> for TreapVecStore<T> {}
 
 // Type aliases for convenience
+#[allow(dead_code)]
 pub type SbtStore<T> = VecStore<T>;
 pub type TreapStore<T> = TreapVecStore<T>;
 

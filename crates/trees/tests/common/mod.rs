@@ -12,16 +12,19 @@ impl<T> VecStore<T> {
     Self { nodes: (0..capacity).map(|_| Node::default()).collect() }
   }
 
+  #[allow(dead_code)]
   pub fn with_nodes(nodes: Vec<Node<T>>) -> Self {
     Self { nodes }
   }
 
   #[inline]
+  #[allow(dead_code)]
   pub fn nodes(&self) -> &[Node<T>] {
     &self.nodes
   }
 
   #[inline]
+  #[allow(dead_code)]
   pub fn nodes_mut(&mut self) -> &mut [Node<T>] {
     &mut self.nodes
   }
@@ -32,6 +35,7 @@ impl<T> VecStore<T> {
     }
   }
 
+  #[allow(dead_code)]
   pub fn is_empty(&self) -> bool {
     self.nodes.iter().all(|n| n.size == 0)
   }
@@ -84,15 +88,18 @@ impl<T: Idx> SizeBalanced<T> for VecStore<T> {}
 pub struct TreapVecStore<T>(VecStore<T>);
 
 impl<T> TreapVecStore<T> {
+  #[allow(dead_code)]
   pub fn new(capacity: usize) -> Self {
     Self(VecStore::new(capacity))
   }
 
   #[inline]
+  #[allow(dead_code)]
   pub fn nodes(&self) -> &[Node<T>] {
     self.0.nodes()
   }
 
+  #[allow(dead_code)]
   pub fn reset(&mut self) {
     self.0.reset()
   }
@@ -136,7 +143,9 @@ impl<T: Idx> Tree<T> for TreapVecStore<T> {
 impl<T: Idx> Treap<T> for TreapVecStore<T> {}
 
 // Type aliases for convenience
+#[allow(dead_code)]
 pub type SbtStore<T> = VecStore<T>;
+#[allow(dead_code)]
 pub type TreapStore<T> = TreapVecStore<T>;
 
 // Keep old names for backward compatibility during migration
