@@ -92,7 +92,11 @@ impl<T: Pod> RawMem for Alloc<T> {
   }
 
   fn shrink(&mut self, reduction: usize) -> Result<()> {
-    let new_cap = self.cap.saturating_sub(reduction);
+    let old_len = self.place.len();
+    let new_len = old_len.saturating_sub(reduction);
+
+    // Shrink capacity to match the new length
+    let new_cap = new_len;
 
     if new_cap == 0 {
       // Deallocate everything
@@ -127,7 +131,12 @@ impl<T: Pod> RawMem for Alloc<T> {
     }
 
     self.cap = new_cap;
-    self.place.shrink_to(new_cap);
+
+    // SAFETY: ptr is valid for new_cap elements after realloc
+    let uninit: &mut [MaybeUninit<T>] =
+      unsafe { slice::from_raw_parts_mut(ptr as *mut MaybeUninit<T>, new_cap) };
+
+    self.place.update_ptr(uninit);
 
     Ok(())
   }
