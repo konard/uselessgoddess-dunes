@@ -1,4 +1,7 @@
-use {dunes_trees::{SizeBalanced, Store, Tree}, proptest::prelude::*};
+use {
+  dunes_trees::{SizeBalanced, Store, Tree},
+  proptest::prelude::*,
+};
 
 proptest! {
   #[test]
