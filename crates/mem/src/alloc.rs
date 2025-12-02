@@ -70,7 +70,8 @@ impl<T: Pod> RawMem for Alloc<T> {
       let old_layout =
         Layout::array::<T>(old_cap).map_err(|_| Error::CapacityOverflow)?;
 
-      // SAFETY: reallocating with matching old_layout and growing to larger size
+      // SAFETY: reallocating with matching old_layout and growing to
+      // larger size
       let ptr = unsafe {
         let old_ptr = self.place.as_mut_slice().as_mut_ptr() as *mut u8;
         alloc::realloc(old_ptr, old_layout, layout.size())
@@ -100,7 +101,8 @@ impl<T: Pod> RawMem for Alloc<T> {
         let layout =
           Layout::array::<T>(self.cap).map_err(|_| Error::CapacityOverflow)?;
 
-        // SAFETY: deallocating with matching layout before resetting to dangling
+        // SAFETY: deallocating with matching layout before resetting
+        // to dangling
         unsafe {
           let ptr = self.place.as_mut_slice().as_mut_ptr() as *mut u8;
           alloc::dealloc(ptr, layout);
@@ -116,7 +118,8 @@ impl<T: Pod> RawMem for Alloc<T> {
     let new_layout =
       Layout::array::<T>(new_cap).map_err(|_| Error::CapacityOverflow)?;
 
-    // SAFETY: reallocating with matching old_layout and shrinking to smaller size
+    // SAFETY: reallocating with matching old_layout and shrinking to
+    // smaller size
     let ptr = unsafe {
       let old_ptr = self.place.as_mut_slice().as_mut_ptr() as *mut u8;
       alloc::realloc(old_ptr, old_layout, new_layout.size())

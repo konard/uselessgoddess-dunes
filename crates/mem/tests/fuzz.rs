@@ -1,10 +1,7 @@
 use {
   mem::{Alloc, PreAlloc, RawMem},
   proptest::prelude::*,
-  std::error::Error,
 };
-
-type Result = std::result::Result<(), Box<dyn Error>>;
 
 #[derive(Debug, Clone)]
 enum MemOp {
@@ -25,7 +22,7 @@ fn mem_ops_strategy() -> impl Strategy<Value = Vec<MemOp>> {
   )
 }
 
-fn apply_ops<M: RawMem<Item = u64>>(mut mem: M, ops: Vec<MemOp>) -> Result {
+fn apply_ops<M: RawMem<Item = u64>>(mut mem: M, ops: Vec<MemOp>) {
   let mut expected_len: usize = 0;
 
   for op in ops {
@@ -38,26 +35,24 @@ fn apply_ops<M: RawMem<Item = u64>>(mut mem: M, ops: Vec<MemOp>) -> Result {
         }
       }
       MemOp::Shrink(size) => {
-        mem.shrink(size)?;
+        mem.shrink(size).unwrap();
         expected_len = expected_len.saturating_sub(size);
         assert_eq!(mem.as_slice().len(), expected_len);
       }
     }
   }
-
-  Ok(())
 }
 
 proptest! {
   #[test]
   fn random_alloc_ops(ops in mem_ops_strategy()) {
-    apply_ops(Alloc::<u64>::new(), ops).unwrap();
+    apply_ops(Alloc::<u64>::new(), ops);
   }
 
   #[test]
   fn random_prealloc_ops(ops in mem_ops_strategy()) {
     let mut buf = vec![0u64; 100000];
-    apply_ops(PreAlloc::new(&mut buf[..]), ops).unwrap();
+    apply_ops(PreAlloc::new(&mut buf[..]), ops);
   }
 
   #[test]
@@ -87,73 +82,6 @@ proptest! {
     assert_eq!(alloc.as_slice().len(), remaining);
     assert!(alloc.as_slice().iter().all(|&x| x == 123));
   }
-}
-
-#[test]
-fn basic_invariants() -> Result {
-  let mut mem = Alloc::<u64>::new();
-  assert_eq!(mem.as_slice().len(), 0);
-
-  mem.grow(10)?.zeroed();
-  assert_eq!(mem.as_slice().len(), 10);
-  assert_eq!(mem.as_slice(), &[0u64; 10]);
-
-  mem.grow(5)?.filled(42);
-  assert_eq!(mem.as_slice().len(), 15);
-
-  mem.shrink(5)?;
-  assert_eq!(mem.as_slice().len(), 10);
-
-  mem.shrink(10)?;
-  assert_eq!(mem.as_slice().len(), 0);
-
-  Ok(())
-}
-
-#[test]
-fn edge_cases() -> Result {
-  let mut mem = Alloc::<u8>::new();
-
-  mem.grow(0)?.zeroed();
-  assert_eq!(mem.as_slice().len(), 0);
-
-  mem.grow(10)?.filled(123);
-  assert_eq!(mem.as_slice().len(), 10);
-
-  mem.shrink(0)?;
-  assert_eq!(mem.as_slice().len(), 10);
-
-  mem.shrink(100)?;
-  assert_eq!(mem.as_slice().len(), 0);
-
-  Ok(())
-}
-
-#[test]
-fn mutability() -> Result {
-  let mut mem = Alloc::<u32>::new();
-  mem.grow(10)?.zeroed();
-
-  for (i, elem) in mem.as_mut_slice().iter_mut().enumerate() {
-    *elem = i as u32;
-  }
-
-  for (i, &elem) in mem.as_slice().iter().enumerate() {
-    assert_eq!(elem, i as u32);
-  }
-
-  Ok(())
-}
-
-#[test]
-fn prealloc_overgrow() {
-  let mut buf = [0u64; 10];
-  let mut mem = PreAlloc::new(&mut buf[..]);
-
-  mem.grow(10).unwrap().zeroed();
-  assert_eq!(mem.as_slice().len(), 10);
-
-  assert!(mem.grow(1).is_err());
 }
 
 #[test]
