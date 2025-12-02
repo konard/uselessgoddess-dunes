@@ -22,7 +22,7 @@ jobs:
       - name: Run benchmarks
         run: cargo bench --package dunes-trees --bench sbt_bench -- --output-format bencher | tee output.txt
 
-      - name: Store benchmark result
+      - name: Store benchmark result (main branch only)
         uses: benchmark-action/github-action-benchmark@v1
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
@@ -37,13 +37,3 @@ jobs:
           # Enable GitHub Pages deployment
           gh-pages-branch: gh-pages
           benchmark-data-dir-path: dev/bench
-
-      - name: Store benchmark result (PR only)
-        uses: benchmark-action/github-action-benchmark@v1
-        if: github.event_name == 'pull_request'
-        with:
-          tool: 'cargo'
-          output-file-path: output.txt
-          # Don't save, push, or compare on PRs, just validate output
-          save-data-file: false
-          auto-push: false
