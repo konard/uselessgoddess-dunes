@@ -1,4 +1,4 @@
-use dunes_trees::{SizeBalancedTree, Store};
+use dunes_trees::{Store, Tree};
 
 #[test]
 fn test_single_insert() {

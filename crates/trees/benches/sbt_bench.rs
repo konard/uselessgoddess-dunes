@@ -3,7 +3,7 @@ use {
     Bencher, BenchmarkId, Criterion, Throughput, criterion_group,
     criterion_main,
   },
-  dunes_trees::{SizeBalancedTree, Store},
+  dunes_trees::{Store, Tree},
   std::{
     num::NonZeroUsize,
     time::{Duration, Instant},

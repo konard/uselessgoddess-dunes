@@ -1,5 +1,5 @@
 use {
-  dunes_trees::{SizeBalancedTree, Store},
+  dunes_trees::{SizeBalanced, Store, Tree},
   proptest::prelude::*,
   std::collections::HashSet,
 };

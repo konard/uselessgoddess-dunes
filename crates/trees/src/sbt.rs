@@ -1,43 +1,17 @@
-use crate::{Idx, Node};
+use crate::{Idx, Node, Tree};
 
-/// Size-Balanced Tree trait - provides operations on tree stored in slice
-pub trait SizeBalancedTree<T: Idx> {
-  /// Get node at index
-  fn get(&self, idx: T) -> Option<Node<T>>;
-
-  /// Set node at index
-  fn set(&mut self, idx: T, node: Node<T>);
-
-  /// Get mutable reference to left child (if it exists)
-  fn left_mut(&mut self, idx: T) -> Option<&mut T>;
-
-  /// Get mutable reference to right child (if it exists)
-  fn right_mut(&mut self, idx: T) -> Option<&mut T>;
-
-  /// Compare two indices - true if first should be left of second
-  fn is_left_of(&self, first: T, second: T) -> bool;
-
-  /// Compare two indices - true if first should be right of second
-  #[inline]
-  fn is_right_of(&self, first: T, second: T) -> bool {
-    first != second && !self.is_left_of(first, second)
-  }
-
+/// Size-Balanced Tree - provides operations on tree stored in slice
+///
+/// Extends the base Tree trait with size-balancing operations.
+/// Uses subtree size to maintain balance (Chinese student's tree algorithm).
+pub trait SizeBalanced<T: Idx>: Tree<T> {
+  /// Get size of subtree rooted at index
   #[inline]
   fn size(&self, idx: T) -> Option<usize> {
     self.get(idx).map(|n| n.size)
   }
 
-  #[inline]
-  fn left(&self, idx: T) -> Option<T> {
-    self.get(idx)?.left
-  }
-
-  #[inline]
-  fn right(&self, idx: T) -> Option<T> {
-    self.get(idx)?.right
-  }
-
+  /// Set size of subtree
   #[inline]
   fn set_size(&mut self, idx: T, size: usize) {
     if let Some(node) = self.get(idx) {
@@ -45,72 +19,19 @@ pub trait SizeBalancedTree<T: Idx> {
     }
   }
 
-  #[inline]
-  fn set_left(&mut self, idx: T, left: Option<T>) {
-    if let Some(node) = self.get(idx) {
-      self.set(idx, Node { left, ..node });
-    }
-  }
-
-  #[inline]
-  fn set_right(&mut self, idx: T, right: Option<T>) {
-    if let Some(node) = self.get(idx) {
-      self.set(idx, Node { right, ..node });
-    }
-  }
-
+  /// Get size of left subtree
   #[inline]
   fn left_size(&self, idx: T) -> Option<usize> {
     self.left(idx).and_then(|idx| self.size(idx))
   }
 
+  /// Get size of right subtree
   #[inline]
   fn right_size(&self, idx: T) -> Option<usize> {
     self.right(idx).and_then(|idx| self.size(idx))
   }
 
-  fn rightest(&self, mut current: T) -> T {
-    while let Some(next) = self.right(current) {
-      current = next;
-    }
-    current
-  }
-
-  fn leftest(&self, mut current: T) -> T {
-    while let Some(next) = self.left(current) {
-      current = next;
-    }
-    current
-  }
-
-  #[inline]
-  fn next(&self, idx: T) -> Option<T> {
-    self.right(idx).map(|idx| self.leftest(idx))
-  }
-
-  #[inline]
-  fn prev(&self, idx: T) -> Option<T> {
-    self.left(idx).map(|idx| self.rightest(idx))
-  }
-
-  fn contains(&self, mut root: T, idx: T) -> bool {
-    loop {
-      if self.is_left_of(idx, root) {
-        match self.left(root) {
-          Some(next) => root = next,
-          None => return false,
-        }
-      } else if self.is_right_of(idx, root) {
-        match self.right(root) {
-          Some(next) => root = next,
-          None => return false,
-        }
-      } else {
-        return true;
-      }
-    }
-  }
-
+  /// Increment subtree size
   #[inline]
   fn inc_size(&mut self, idx: T) {
     if let Some(size) = self.size(idx) {
@@ -118,6 +39,7 @@ pub trait SizeBalancedTree<T: Idx> {
     }
   }
 
+  /// Decrement subtree size
   #[inline]
   fn dec_size(&mut self, idx: T) {
     if let Some(size) = self.size(idx) {
@@ -125,16 +47,12 @@ pub trait SizeBalancedTree<T: Idx> {
     }
   }
 
+  /// Recalculate and fix subtree size based on children
   #[inline]
   fn fix_size(&mut self, idx: T) {
     let size =
       self.left_size(idx).unwrap_or(0) + self.right_size(idx).unwrap_or(0) + 1;
     self.set_size(idx, size)
-  }
-
-  #[inline]
-  fn clear(&mut self, idx: T) {
-    self.set(idx, Node::default())
   }
 
   #[must_use]
@@ -157,8 +75,8 @@ pub trait SizeBalancedTree<T: Idx> {
     Some(left)
   }
 
-  /// Insert index into tree, returns new root
-  fn insert(&mut self, root: Option<T>, idx: T) -> Option<T> {
+  /// Insert index into tree using SBT balancing, returns new root
+  fn insert_sbt(&mut self, root: Option<T>, idx: T) -> Option<T> {
     if let Some(mut root_val) = root {
       unsafe { self.insert_impl(&mut root_val, idx)? }
       Some(root_val)
@@ -168,11 +86,11 @@ pub trait SizeBalancedTree<T: Idx> {
     }
   }
 
-  /// Remove index from tree, returns new root (None if tree empty)
+  /// Remove index from tree using SBT balancing, returns new root (None if tree empty)
   ///
   /// TODO: This implementation has known bugs in certain cases.
   /// The removal logic needs to be reviewed against reference impl.
-  fn remove(&mut self, root: Option<T>, idx: T) -> Option<T> {
+  fn remove_sbt(&mut self, root: Option<T>, idx: T) -> Option<T> {
     let mut root_val = root?;
     if unsafe { self.remove_impl(&mut root_val, idx)? } {
       None

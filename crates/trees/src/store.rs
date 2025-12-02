@@ -1,4 +1,4 @@
-use crate::{Idx, Node, SizeBalancedTree};
+use crate::{Idx, Node, SizeBalanced, Tree};
 
 /// Simple vector-backed tree store for testing and benchmarking
 #[derive(Debug, Clone)]
@@ -36,7 +36,7 @@ impl<T> Store<T> {
   }
 }
 
-impl<T: Idx> SizeBalancedTree<T> for Store<T> {
+impl<T: Idx> Tree<T> for Store<T> {
   #[inline(always)]
   fn get(&self, idx: T) -> Option<Node<T>> {
     self.nodes.get(idx.as_usize()).copied()
@@ -63,7 +63,17 @@ impl<T: Idx> SizeBalancedTree<T> for Store<T> {
   fn is_left_of(&self, first: T, second: T) -> bool {
     first.as_usize() < second.as_usize()
   }
+
+  fn insert(&mut self, root: Option<T>, idx: T) -> Option<T> {
+    self.insert_sbt(root, idx)
+  }
+
+  fn remove(&mut self, root: Option<T>, idx: T) -> Option<T> {
+    self.remove_sbt(root, idx)
+  }
 }
+
+impl<T: Idx> SizeBalanced<T> for Store<T> {}
 
 #[cfg(test)]
 mod tests {

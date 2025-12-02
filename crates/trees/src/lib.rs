@@ -3,9 +3,13 @@
 mod node;
 mod sbt;
 mod store;
+mod treap;
+mod tree;
 
 pub use {
   node::{Idx, Node},
-  sbt::SizeBalancedTree,
+  sbt::SizeBalanced,
   store::Store,
+  treap::{Treap, TreapStore},
+  tree::Tree,
 };
