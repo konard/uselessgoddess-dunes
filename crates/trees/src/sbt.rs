@@ -86,7 +86,9 @@ pub trait SizeBalanced<T: Idx>: Tree<T> {
     }
   }
 
-  /// Remove index from tree using SBT balancing, returns new root (None if tree empty)
+  /// Remove index from tree using SBT balancing
+  ///
+  /// Returns new root (None if tree empty)
   ///
   /// TODO: This implementation has known bugs in certain cases.
   /// The removal logic needs to be reviewed against reference impl.

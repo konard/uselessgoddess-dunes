@@ -2,9 +2,10 @@ use crate::{Idx, Node, Tree};
 
 /// Treap (Tree + Heap) - Randomized binary search tree
 ///
-/// A treap maintains BST property for keys and heap property for priorities.
-/// Priority is derived from the key itself (using hash) to ensure deterministic behavior.
-/// Uses the `size` field in Node to store priority.
+/// A treap maintains BST property for keys and heap property for
+/// priorities. Priority is derived from the key itself (using hash)
+/// to ensure deterministic behavior. Uses the `size` field in Node
+/// to store priority.
 pub trait Treap<T: Idx>: Tree<T> {
   /// Get priority for a node (uses size field to store priority)
   #[inline]
