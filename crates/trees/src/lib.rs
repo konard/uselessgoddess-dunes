@@ -4,6 +4,8 @@ mod node;
 mod sbt;
 mod store;
 
-pub use node::{Idx, Node};
-pub use sbt::SizeBalancedTree;
-pub use store::Store;
+pub use {
+  node::{Idx, Node},
+  sbt::SizeBalancedTree,
+  store::Store,
+};
