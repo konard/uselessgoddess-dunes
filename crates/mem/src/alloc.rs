@@ -135,13 +135,13 @@ impl<T: Pod> RawMem for Alloc<T> {
 
 impl<T> Drop for Alloc<T> {
   fn drop(&mut self) {
-    if self.cap > 0 {
-      if let Ok(layout) = Layout::array::<T>(self.cap) {
-        // SAFETY: deallocating with matching layout during final cleanup
-        unsafe {
-          let ptr = self.place.as_mut_slice().as_mut_ptr() as *mut u8;
-          alloc::dealloc(ptr, layout);
-        }
+    if self.cap > 0
+      && let Ok(layout) = Layout::array::<T>(self.cap)
+    {
+      // SAFETY: deallocating with matching layout during final cleanup
+      unsafe {
+        let ptr = self.place.as_mut_slice().as_mut_ptr() as *mut u8;
+        alloc::dealloc(ptr, layout);
       }
     }
   }
