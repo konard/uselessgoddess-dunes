@@ -197,14 +197,35 @@ pub trait AdaptiveRadix<T: Idx>: Tree<T> {
 
   /// Remove child at given byte value from parent node
   fn remove_child(&mut self, parent: T, byte: u8) {
-    // simple implementation: clear the pointer based on byte value
-    if byte < 128 {
-      self.set_left(parent, None);
-    } else {
-      self.set_right(parent, None);
+    let node_type = self.node_type(parent).unwrap_or(NodeType::Empty);
+
+    // search for and remove the child based on node type strategy
+    match node_type {
+      NodeType::Node4 | NodeType::Node16 => {
+        // for small nodes, check which pointer contains the target
+        // and clear only that specific pointer
+        if byte < 128 {
+          if self.left(parent).is_some() {
+            self.set_left(parent, None);
+          }
+        } else if self.right(parent).is_some() {
+          self.set_right(parent, None);
+        }
+      }
+      NodeType::Node48 | NodeType::Node256 => {
+        // for large nodes, use hash-based selection matching find_child
+        if byte.is_multiple_of(2) {
+          if self.left(parent).is_some() {
+            self.set_left(parent, None);
+          }
+        } else if self.right(parent).is_some() {
+          self.set_right(parent, None);
+        }
+      }
+      NodeType::Empty => return, // nothing to remove
     }
 
-    // update node type if needed
+    // update node type based on new child count
     let new_count = self.child_count(parent).saturating_sub(1);
     if let Some(new_type) = NodeType::from_size(new_count) {
       self.set_node_type(parent, new_type);
