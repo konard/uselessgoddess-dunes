@@ -1,42 +1,49 @@
-use crate::{Idx, Node, SizeBalanced, Tree};
+use trees::{Idx, Node, SizeBalanced, Tree};
 
-/// Simple vector-backed tree store for testing and benchmarking
+/// Vector-backed tree store for testing and benchmarking.
+/// Generic over the tree implementation strategy.
 #[derive(Debug, Clone)]
-pub struct Store<T> {
+pub struct VecStore<T> {
   nodes: Vec<Node<T>>,
 }
 
-impl<T> Store<T> {
+impl<T> VecStore<T> {
   pub fn new(capacity: usize) -> Self {
     Self { nodes: (0..capacity).map(|_| Node::default()).collect() }
   }
 
+  #[allow(dead_code)]
   pub fn with_nodes(nodes: Vec<Node<T>>) -> Self {
     Self { nodes }
   }
 
   #[inline]
+  #[allow(dead_code)]
   pub fn nodes(&self) -> &[Node<T>] {
     &self.nodes
   }
 
   #[inline]
+  #[allow(dead_code)]
   pub fn nodes_mut(&mut self) -> &mut [Node<T>] {
     &mut self.nodes
   }
 
+  #[allow(dead_code)]
   pub fn reset(&mut self) {
     for node in &mut self.nodes {
       *node = Node::default();
     }
   }
 
+  #[allow(dead_code)]
   pub fn is_empty(&self) -> bool {
     self.nodes.iter().all(|n| n.size == 0)
   }
 }
 
-impl<T: Idx> Tree<T> for Store<T> {
+// Base Tree trait implementation for SBT
+impl<T: Idx> Tree<T> for VecStore<T> {
   #[inline(always)]
   fn get(&self, idx: T) -> Option<Node<T>> {
     self.nodes.get(idx.as_usize()).copied()
@@ -64,6 +71,7 @@ impl<T: Idx> Tree<T> for Store<T> {
     first.as_usize() < second.as_usize()
   }
 
+  // Default implementation - will be overridden by strategy traits
   fn insert(&mut self, root: Option<T>, idx: T) -> Option<T> {
     self.insert_sbt(root, idx)
   }
@@ -73,51 +81,8 @@ impl<T: Idx> Tree<T> for Store<T> {
   }
 }
 
-impl<T: Idx> SizeBalanced<T> for Store<T> {}
+// SBT strategy
+impl<T: Idx> SizeBalanced<T> for VecStore<T> {}
 
-#[cfg(test)]
-mod tests {
-  use super::*;
-
-  #[test]
-  fn test_store_basic() {
-    let mut store: Store<usize> = Store::new(10);
-
-    let mut root = None;
-    root = store.insert(root, 5);
-    assert_eq!(root, Some(5));
-    assert!(store.contains(5, 5));
-
-    root = store.insert(root, 3);
-    root = store.insert(root, 7);
-    assert!(store.contains(root.unwrap(), 3));
-    assert!(store.contains(root.unwrap(), 5));
-    assert!(store.contains(root.unwrap(), 7));
-    assert!(!store.contains(root.unwrap(), 1));
-  }
-
-  #[test]
-  #[ignore] // TODO: Fix remove implementation - has bugs with node cleanup
-  fn test_store_insert_remove() {
-    let mut store: Store<usize> = Store::new(100);
-
-    let mut root = None;
-    for i in 1..10 {
-      root = store.insert(root, i);
-    }
-
-    for i in 1..10 {
-      assert!(store.contains(root.unwrap(), i));
-    }
-
-    for i in 1..10 {
-      root = store.remove(root, i);
-      if let Some(r) = root {
-        assert!(!store.contains(r, i));
-      }
-    }
-
-    assert!(root.is_none());
-    assert!(store.is_empty());
-  }
-}
+// Type alias for convenience
+pub type Store<T> = VecStore<T>;

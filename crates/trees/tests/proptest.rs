@@ -1,7 +1,9 @@
+mod common;
+
 use {
-  dunes_trees::{SizeBalanced, Store, Tree},
+  common::Store,
   proptest::prelude::*,
-  std::collections::HashSet,
+  trees::{SizeBalanced, Tree},
 };
 
 proptest! {
