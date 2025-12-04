@@ -352,7 +352,27 @@ where
       // Since tree is ordered by (source, target), matching nodes are
       // contiguous in in-order traversal
 
-      // Traverse left subtree
+      // If current node's source < search source, go right
+      if raw.source < source {
+        return self.traverse_source_tree(
+          raw.source_tree.right,
+          source,
+          target,
+          handler,
+        );
+      }
+
+      // If current node's source > search source, go left
+      if raw.source > source {
+        return self.traverse_source_tree(
+          raw.source_tree.left,
+          source,
+          target,
+          handler,
+        );
+      }
+
+      // Current node's source == search source, traverse both subtrees
       if self.traverse_source_tree(
         raw.source_tree.left,
         source,
@@ -363,25 +383,17 @@ where
         return Flow::Break;
       }
 
-      // If current node's source > search source, we're past the range
-      // (all remaining nodes in in-order will also have source >= current)
-      if raw.source > source {
-        return Flow::Continue;
+      // Check current node
+      let link = Link::new(
+        T::from_usize(idx),
+        T::from_usize(raw.source),
+        T::from_usize(raw.target),
+      );
+      if handler.handle(link) == Flow::Break {
+        return Flow::Break;
       }
 
-      // Check current node if source matches
-      if raw.source == source {
-        let link = Link::new(
-          T::from_usize(idx),
-          T::from_usize(raw.source),
-          T::from_usize(raw.target),
-        );
-        if handler.handle(link) == Flow::Break {
-          return Flow::Break;
-        }
-      }
-
-      // Traverse right subtree
+      // Continue to right subtree
       return self.traverse_source_tree(
         raw.source_tree.right,
         source,
@@ -455,7 +467,27 @@ where
       // Since tree is ordered by (target, source), matching nodes are
       // contiguous in in-order traversal
 
-      // Traverse left subtree
+      // If current node's target < search target, go right
+      if raw.target < target {
+        return self.traverse_target_tree(
+          raw.target_tree.right,
+          target,
+          source,
+          handler,
+        );
+      }
+
+      // If current node's target > search target, go left
+      if raw.target > target {
+        return self.traverse_target_tree(
+          raw.target_tree.left,
+          target,
+          source,
+          handler,
+        );
+      }
+
+      // Current node's target == search target, traverse both subtrees
       if self.traverse_target_tree(
         raw.target_tree.left,
         target,
@@ -466,25 +498,17 @@ where
         return Flow::Break;
       }
 
-      // If current node's target > search target, we're past the range
-      // (all remaining nodes in in-order will also have target >= current)
-      if raw.target > target {
-        return Flow::Continue;
+      // Check current node
+      let link = Link::new(
+        T::from_usize(idx),
+        T::from_usize(raw.source),
+        T::from_usize(raw.target),
+      );
+      if handler.handle(link) == Flow::Break {
+        return Flow::Break;
       }
 
-      // Check current node if target matches
-      if raw.target == target {
-        let link = Link::new(
-          T::from_usize(idx),
-          T::from_usize(raw.source),
-          T::from_usize(raw.target),
-        );
-        if handler.handle(link) == Flow::Break {
-          return Flow::Break;
-        }
-      }
-
-      // Traverse right subtree
+      // Continue to right subtree
       return self.traverse_target_tree(
         raw.target_tree.right,
         target,
@@ -643,9 +667,9 @@ where
 
     // Use tree-based search when possible for better performance
     if index_query == T::ANY {
-      // Query by source and/or target - use trees
+      // Query by source and/or target
       if source != T::ANY && target != T::ANY {
-        // Exact (source, target) search
+        // Exact (source, target) search - use tree
         if let Some(idx) =
           self.search_in_source_tree(source.as_usize(), target.as_usize())
           && self.exists(T::from_usize(idx))
@@ -659,12 +683,29 @@ where
           return handler.handle(link);
         }
         return Flow::Continue;
-      } else if source != T::ANY {
-        // Search by source using source tree
-        return self.each_by_source(source.as_usize(), handler);
-      } else if target != T::ANY {
-        // Search by target using target tree
-        return self.each_by_target(target.as_usize(), handler);
+      } else if source != T::ANY || target != T::ANY {
+        // Wildcard queries - use linear scan due to SBT corruption bugs
+        // TODO: Fix SBT remove bugs or switch to ART to enable tree traversal
+        for i in 1..self.allocated {
+          let index = T::from_usize(i);
+          if self.exists(index)
+            && let Some(raw) = self.repr_at(i)
+          {
+            let raw_source = T::from_usize(raw.source);
+            let raw_target = T::from_usize(raw.target);
+
+            let matches = (source == T::ANY || source == raw_source)
+              && (target == T::ANY || target == raw_target);
+
+            if matches {
+              let link = Link::new(index, raw_source, raw_target);
+              if handler.handle(link) == Flow::Break {
+                return Flow::Break;
+              }
+            }
+          }
+        }
+        return Flow::Continue;
       } else {
         // No constraints - enumerate all
         return self.each([], handler);
