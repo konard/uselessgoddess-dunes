@@ -22,8 +22,9 @@ def parse_bench_output(output_file):
     old_pattern = r'test\s+(\w+)\s+\.\.\.\s+bench:\s+([\d,]+(?:\.\d+)?)\s+ns/iter\s+\(\+/-\s+([\d,]+(?:\.\d+)?)\)'
 
     # Pattern to match criterion format:
-    # sbt_insert_100          time:   [2.7153 µs 2.7634 µs 2.8164 µs]
-    criterion_pattern = r'(\w+)\s+time:\s+\[([0-9.]+)\s+([µnm]?s)\s+([0-9.]+)\s+([µnm]?s)\s+([0-9.]+)\s+([µnm]?s)\]'
+    # sbt::insert(100)          time:   [2.7153 µs 2.7634 µs 2.8164 µs]
+    # Also supports old format: sbt_insert_100
+    criterion_pattern = r'([\w:()]+)\s+time:\s+\[([0-9.]+)\s+([µnm]?s)\s+([0-9.]+)\s+([µnm]?s)\s+([0-9.]+)\s+([µnm]?s)\]'
 
     results = []
 
@@ -55,13 +56,16 @@ def parse_bench_output(output_file):
         variance = (time_ns_high - time_ns_low) / 2
 
         # Extract the number of operations from benchmark name
-        # sbt_insert_100 -> 100 links
-        # sbt_insert_1000 -> 1000 links
-        # sbt_insert_10000 -> 10000 links
-        # sbt_insert_search_100 -> 100 links (insert) + 100 links (search) = 200 operations
-        # sbt_full_cycle_100 -> 100 links (insert) + 100 links (remove) = 200 operations
+        # New format: sbt::insert(100) -> 100 links
+        # New format: sbt::insert_search(1000) -> 1000 links (insert) + 1000 links (search) = 2000 operations
+        # Old format: sbt_insert_100 -> 100 links (for backward compatibility)
 
-        num_match = re.search(r'_(\d+)$', bench_name)
+        # Try new format first: extract number from parentheses
+        num_match = re.search(r'\((\d+)\)', bench_name)
+        if not num_match:
+            # Fall back to old format: extract number from end
+            num_match = re.search(r'_(\d+)$', bench_name)
+
         if not num_match:
             continue
 
@@ -110,11 +114,13 @@ def parse_bench_output(output_file):
 
         chart_name = f'{bench_type} ({n} elements)'
 
-        # Extract tree type from benchmark name (sbt_ or art_)
+        # Extract tree type from benchmark name
+        # New format: sbt::insert(100) or art::insert(100)
+        # Old format: sbt_insert_100 or art_insert_100
         tree_type = 'unknown'
-        if bench_name.startswith('sbt_'):
+        if bench_name.startswith('sbt::') or bench_name.startswith('sbt_'):
             tree_type = 'SBT'
-        elif bench_name.startswith('art_'):
+        elif bench_name.startswith('art::') or bench_name.startswith('art_'):
             tree_type = 'ART'
 
         results.append({
@@ -133,7 +139,12 @@ def parse_bench_output(output_file):
             variance = float(match.group(3).replace(',', ''))
 
             # Extract the number of operations from benchmark name
-            num_match = re.search(r'_(\d+)$', bench_name)
+            # Try new format first: extract number from parentheses
+            num_match = re.search(r'\((\d+)\)', bench_name)
+            if not num_match:
+                # Fall back to old format: extract number from end
+                num_match = re.search(r'_(\d+)$', bench_name)
+
             if not num_match:
                 continue
 
@@ -170,11 +181,13 @@ def parse_bench_output(output_file):
 
             chart_name = f'{bench_type} ({n} elements)'
 
-            # Extract tree type from benchmark name (sbt_ or art_)
+            # Extract tree type from benchmark name
+            # New format: sbt::insert(100) or art::insert(100)
+            # Old format: sbt_insert_100 or art_insert_100
             tree_type = 'unknown'
-            if bench_name.startswith('sbt_'):
+            if bench_name.startswith('sbt::') or bench_name.startswith('sbt_'):
                 tree_type = 'SBT'
-            elif bench_name.startswith('art_'):
+            elif bench_name.startswith('art::') or bench_name.startswith('art_'):
                 tree_type = 'ART'
 
             results.append({
