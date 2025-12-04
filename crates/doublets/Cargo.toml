@@ -12,6 +12,7 @@ thiserror = { workspace = true }
 
 [dev-dependencies]
 criterion = "0.8"
+proptest = "1.5"
 
 [[bench]]
 name = "doublets_bench"

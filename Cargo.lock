@@ -232,6 +232,7 @@ dependencies = [
  "bytemuck",
  "criterion",
  "mem",
+ "proptest",
  "thiserror",
  "trees",
 ]
