@@ -1,76 +1,74 @@
-use crate::{
-  Constants, DoubletsError, Flow, Link, LinkIndex, ReadHandler, Result,
-  WriteHandler,
-};
+use crate::{Error, Flow, Index, Link, ReadHandler, Result, WriteHandler};
 
 /// Core trait for doublets storage operations
 ///
 /// Provides low-level CRUD operations on links
-pub trait Links<T: LinkIndex>: Send + Sync {
-  /// Get the constants for this store
-  fn constants(&self) -> &Constants<T>;
-
+pub trait Links<L: Index>: Send + Sync {
   /// Count links matching a query
   ///
   /// Query format: [index?, source?, target?]
-  /// Use constants().any for wildcards
-  fn count(&self, query: &[T]) -> T;
+  /// Use L::ANY for wildcards
+  fn count<const N: usize>(&self, query: [L; N]) -> L;
 
   /// Create a new link
   ///
   /// Query format: [source?, target?] or []
   /// Empty query creates a point link
-  fn create(
+  fn create<const N: usize, H: WriteHandler<L>>(
     &mut self,
-    query: &[T],
-    handler: WriteHandler<'_, T>,
-  ) -> Result<Flow, T>;
+    query: [L; N],
+    handler: &mut H,
+  ) -> Result<Flow, L>;
 
   /// Iterate over links matching a query
-  fn each(&self, query: &[T], handler: ReadHandler<'_, T>) -> Flow;
+  fn each<const N: usize, H: ReadHandler<L>>(
+    &self,
+    query: [L; N],
+    handler: &mut H,
+  ) -> Flow;
 
   /// Update links matching a query
   ///
   /// Query identifies which links to update
   /// Change specifies new values
-  fn update(
+  fn update<const N1: usize, const N2: usize, H: WriteHandler<L>>(
     &mut self,
-    query: &[T],
-    change: &[T],
-    handler: WriteHandler<'_, T>,
-  ) -> Result<Flow, T>;
+    query: [L; N1],
+    change: [L; N2],
+    handler: &mut H,
+  ) -> Result<Flow, L>;
 
   /// Delete links matching a query
-  fn delete(
+  fn delete<const N: usize, H: WriteHandler<L>>(
     &mut self,
-    query: &[T],
-    handler: WriteHandler<'_, T>,
-  ) -> Result<Flow, T>;
+    query: [L; N],
+    handler: &mut H,
+  ) -> Result<Flow, L>;
 
   /// Get a specific link by index
-  fn get(&self, index: T) -> Option<Link<T>>;
+  fn get(&self, index: L) -> Option<Link<L>>;
 }
 
 /// High-level doublets operations
 ///
 /// Extends Links with convenient methods for common operations
-pub trait Doublets<T: LinkIndex>: Links<T> {
+pub trait Doublets<L: Index>: Links<L> {
   /// Count all links in the store
   #[inline]
-  fn count_all(&self) -> T {
-    self.count(&[])
+  fn count_all(&self) -> L {
+    self.count([])
   }
 
   /// Count links matching a specific query
   #[inline]
-  fn count_by(&self, query: &[T]) -> T {
+  fn count_by<const N: usize>(&self, query: [L; N]) -> L {
     self.count(query)
   }
 
   /// Create a new link and return its index
-  fn create_link(&mut self, source: T, target: T) -> Result<T, T> {
-    let mut result = T::zero();
-    self.create(&[source, target], &mut |_before, after| {
+  fn create_link(&mut self, source: L, target: L) -> Result<L, L> {
+    let mut result = L::ZERO;
+    self.create([source, target], &mut |_before: Link<L>, after: Link<L>| {
       result = after.index;
       Flow::Continue
     })?;
@@ -78,27 +76,27 @@ pub trait Doublets<T: LinkIndex>: Links<T> {
   }
 
   /// Create a point link (source = target = index)
-  fn create_point(&mut self) -> Result<T, T> {
-    let mut index = T::zero();
-    // First create empty link
-    self.create(&[], &mut |_before, after| {
+  fn create_point(&mut self) -> Result<L, L> {
+    let mut index = L::ZERO;
+    self.create([], &mut |_before: Link<L>, after: Link<L>| {
       index = after.index;
       Flow::Continue
     })?;
-    // Then update it to point to itself
-    self.update(&[index], &[index, index, index], &mut |_before, _after| {
-      Flow::Continue
-    })?;
+    self.update(
+      [index],
+      [index, index, index],
+      &mut |_before: Link<L>, _after: Link<L>| Flow::Continue,
+    )?;
     Ok(index)
   }
 
   /// Update a specific link
-  fn update_link(&mut self, index: T, source: T, target: T) -> Result<T, T> {
-    let mut result = T::zero();
+  fn update_link(&mut self, index: L, source: L, target: L) -> Result<L, L> {
+    let mut result = L::ZERO;
     self.update(
-      &[index],
-      &[index, source, target],
-      &mut |_before, after| {
+      [index],
+      [index, source, target],
+      &mut |_before: Link<L>, after: Link<L>| {
         result = after.index;
         Flow::Continue
       },
@@ -107,9 +105,9 @@ pub trait Doublets<T: LinkIndex>: Links<T> {
   }
 
   /// Delete a specific link
-  fn delete_link(&mut self, index: T) -> Result<T, T> {
-    let mut result = T::zero();
-    self.delete(&[index], &mut |before, _after| {
+  fn delete_link(&mut self, index: L) -> Result<L, L> {
+    let mut result = L::ZERO;
+    self.delete([index], &mut |before: Link<L>, _after: Link<L>| {
       result = before.index;
       Flow::Continue
     })?;
@@ -117,10 +115,9 @@ pub trait Doublets<T: LinkIndex>: Links<T> {
   }
 
   /// Search for a link with specific source and target
-  fn search(&self, source: T, target: T) -> Option<T> {
-    let any = self.constants().any;
+  fn search(&self, source: L, target: L) -> Option<L> {
     let mut result = None;
-    self.each(&[any, source, target], &mut |link| {
+    self.each([L::ANY, source, target], &mut |link: Link<L>| {
       result = Some(link.index);
       Flow::Break
     });
@@ -128,7 +125,7 @@ pub trait Doublets<T: LinkIndex>: Links<T> {
   }
 
   /// Get or create a link with specific source and target
-  fn get_or_create(&mut self, source: T, target: T) -> Result<T, T> {
+  fn get_or_create(&mut self, source: L, target: L) -> Result<L, L> {
     if let Some(existing) = self.search(source, target) {
       Ok(existing)
     } else {
@@ -137,56 +134,48 @@ pub trait Doublets<T: LinkIndex>: Links<T> {
   }
 
   /// Count usages of a link (as source or target)
-  fn count_usages(&self, index: T) -> Result<T, T> {
-    let any = self.constants().any;
-    let link = self.get(index).ok_or(DoubletsError::NotExists(index))?;
+  fn count_usages(&self, index: L) -> Result<L, L> {
+    let link = self.get(index).ok_or(Error::NotExists(index))?;
 
-    let mut usage_source = self.count(&[any, index, any]);
+    let mut usage_source = self.count([L::ANY, index, L::ANY]);
     if index == link.source {
       usage_source = usage_source.checked_sub_one().unwrap_or(usage_source);
     }
 
-    let mut usage_target = self.count(&[any, any, index]);
+    let mut usage_target = self.count([L::ANY, L::ANY, index]);
     if index == link.target {
       usage_target = usage_target.checked_sub_one().unwrap_or(usage_target);
     }
 
-    // Simple addition - in production might need checked arithmetic
-    Ok(T::from_usize(usage_source.as_usize() + usage_target.as_usize()))
+    Ok(L::from_usize(usage_source.as_usize() + usage_target.as_usize()))
   }
 
   /// Check if a link has any usages
-  fn has_usages(&self, index: T) -> bool {
+  fn has_usages(&self, index: L) -> bool {
     self.count_usages(index).map(|count| !count.is_zero()).unwrap_or(false)
   }
 
   /// Rebase: replace all occurrences of old with new
-  fn rebase(&mut self, old: T, new: T) -> Result<T, T> {
+  fn rebase(&mut self, old: L, new: L) -> Result<L, L> {
     if old == new {
       return Ok(new);
     }
+    let _ = self.get(old).ok_or(Error::NotExists(old))?;
 
-    // Verify old link exists
-    let _ = self.get(old).ok_or(DoubletsError::NotExists(old))?;
-
-    let any = self.constants().any;
-
-    // Collect all links that use 'old' as source or target
     let mut to_update = Vec::new();
-    self.each(&[any, old, any], &mut |link| {
+    self.each([L::ANY, old, L::ANY], &mut |link: Link<L>| {
       if link.index != old {
         to_update.push((link.index, new, link.target));
       }
       Flow::Continue
     });
-    self.each(&[any, any, old], &mut |link| {
+    self.each([L::ANY, L::ANY, old], &mut |link: Link<L>| {
       if link.index != old {
         to_update.push((link.index, link.source, new));
       }
       Flow::Continue
     });
 
-    // Update all collected links
     for (index, source, target) in to_update {
       self.update_link(index, source, target)?;
     }
@@ -195,7 +184,7 @@ pub trait Doublets<T: LinkIndex>: Links<T> {
   }
 
   /// Rebase and then delete the old link
-  fn rebase_and_delete(&mut self, old: T, new: T) -> Result<T, T> {
+  fn rebase_and_delete(&mut self, old: L, new: L) -> Result<L, L> {
     if old == new {
       Ok(new)
     } else {
@@ -205,10 +194,10 @@ pub trait Doublets<T: LinkIndex>: Links<T> {
   }
 
   /// Collect all links into a vector
-  fn collect_all(&self) -> Vec<Link<T>> {
+  fn collect_all(&self) -> Vec<Link<L>> {
     let count = self.count_all().as_usize();
     let mut result = Vec::with_capacity(count);
-    self.each(&[], &mut |link| {
+    self.each([], &mut |link| {
       result.push(link);
       Flow::Continue
     });
@@ -216,10 +205,9 @@ pub trait Doublets<T: LinkIndex>: Links<T> {
   }
 
   /// Iterate over all links
-  fn iter(&self) -> impl Iterator<Item = Link<T>> {
+  fn iter(&self) -> impl Iterator<Item = Link<L>> {
     self.collect_all().into_iter()
   }
 }
 
-// Automatic implementation of Doublets for any type implementing Links
-impl<T: LinkIndex, L: Links<T> + ?Sized> Doublets<T> for L {}
+impl<L: Index, S: Links<L> + ?Sized> Doublets<L> for S {}

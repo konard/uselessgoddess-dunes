@@ -1,4 +1,4 @@
-use crate::{Link, LinkIndex};
+use crate::{Index, Link};
 
 /// Flow control for iteration handlers
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -19,49 +19,34 @@ impl From<bool> for Flow {
 ///
 /// Called for each link during iteration. Returns Flow to control
 /// whether to continue.
-pub type ReadHandler<'a, T> = &'a mut dyn FnMut(Link<T>) -> Flow;
+pub trait ReadHandler<L: Index> {
+  fn handle(&mut self, link: Link<L>) -> Flow;
+}
+
+impl<L, F> ReadHandler<L> for F
+where
+  L: Index,
+  F: FnMut(Link<L>) -> Flow,
+{
+  fn handle(&mut self, link: Link<L>) -> Flow {
+    self(link)
+  }
+}
 
 /// Handler function for write operations (create, update, delete)
 ///
 /// Called with before and after states. Returns Flow to control
 /// whether to continue.
-pub type WriteHandler<'a, T> = &'a mut dyn FnMut(Link<T>, Link<T>) -> Flow;
-
-/// Constants for the doublets store
-#[derive(Debug, Clone)]
-pub struct Constants<T: LinkIndex> {
-  /// Value used to match any link component in queries
-  pub any: T,
-  /// First valid internal link index
-  pub internal_start: T,
-  /// Last valid internal link index (exclusive upper bound)
-  pub internal_end: T,
+pub trait WriteHandler<L: Index> {
+  fn handle(&mut self, before: Link<L>, after: Link<L>) -> Flow;
 }
 
-impl<T: LinkIndex> Constants<T> {
-  pub fn new(capacity: usize) -> Self {
-    Self {
-      any: T::zero(),
-      internal_start: T::from_usize(1),
-      internal_end: T::from_usize(capacity),
-    }
-  }
-
-  /// Check if a value is the "any" sentinel
-  #[inline]
-  pub fn is_any(&self, value: T) -> bool {
-    value == self.any
-  }
-
-  /// Check if a value is in the internal range
-  #[inline]
-  pub fn is_internal(&self, value: T) -> bool {
-    value >= self.internal_start && value < self.internal_end
-  }
-
-  /// Check if a value is external (outside internal range, but not any)
-  #[inline]
-  pub fn is_external(&self, value: T) -> bool {
-    !self.is_any(value) && !self.is_internal(value)
+impl<L, F> WriteHandler<L> for F
+where
+  L: Index,
+  F: FnMut(Link<L>, Link<L>) -> Flow,
+{
+  fn handle(&mut self, before: Link<L>, after: Link<L>) -> Flow {
+    self(before, after)
   }
 }

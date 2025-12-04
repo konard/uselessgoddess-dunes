@@ -7,9 +7,9 @@ mod store;
 mod traits;
 
 pub use {
-  error::{DoubletsError, Result},
-  handler::{Constants, Flow, ReadHandler, WriteHandler},
-  link::{Link, LinkIndex},
-  store::{DoubletsStore, create_heap_store},
+  error::{Error, Result},
+  handler::{Flow, ReadHandler, WriteHandler},
+  link::{Index, Link},
+  store::{Store, create_heap_store},
   traits::{Doublets, Links},
 };

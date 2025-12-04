@@ -1,99 +1,104 @@
-use doublets::{Doublets, Flow, Link, Links, create_heap_store};
+use doublets::{Doublets, Flow, Link, Links, Result, create_heap_store};
 
 #[test]
-fn test_create_point() {
-  let mut store = create_heap_store::<usize>().expect("Failed to create store");
+fn test_create_point() -> Result<(), usize> {
+  let mut store = create_heap_store::<usize>()?;
 
-  let a = store.create_point().expect("Failed to create point");
+  let a = store.create_point()?;
   assert_eq!(a, 1);
 
-  let link = store.get(a).expect("Link should exist");
+  let link = store.get(a).ok_or(doublets::Error::NotExists(a))?;
   assert_eq!(link, Link::new(a, a, a));
+  Ok(())
 }
 
 #[test]
-fn test_create_link() {
-  let mut store = create_heap_store::<usize>().expect("Failed to create store");
+fn test_create_link() -> Result<(), usize> {
+  let mut store = create_heap_store::<usize>()?;
 
-  let a = store.create_point().expect("Failed to create point a");
-  let b = store.create_point().expect("Failed to create point b");
+  let a = store.create_point()?;
+  let b = store.create_point()?;
 
-  let c = store.create_link(a, b).expect("Failed to create link");
+  let c = store.create_link(a, b)?;
 
-  let link = store.get(c).expect("Link should exist");
+  let link = store.get(c).ok_or(doublets::Error::NotExists(c))?;
   assert_eq!(link, Link::new(c, a, b));
+  Ok(())
 }
 
 #[test]
-fn test_update_link() {
-  let mut store = create_heap_store::<usize>().expect("Failed to create store");
+fn test_update_link() -> Result<(), usize> {
+  let mut store = create_heap_store::<usize>()?;
 
-  let a = store.create_point().expect("Failed to create point a");
-  let b = store.create_point().expect("Failed to create point b");
-  let c = store.create_point().expect("Failed to create point c");
+  let a = store.create_point()?;
+  let b = store.create_point()?;
+  let c = store.create_point()?;
 
-  store.update_link(c, a, b).expect("Failed to update link");
+  store.update_link(c, a, b)?;
 
-  let link = store.get(c).expect("Link should exist");
+  let link = store.get(c).ok_or(doublets::Error::NotExists(c))?;
   assert_eq!(link, Link::new(c, a, b));
+  Ok(())
 }
 
 #[test]
-fn test_delete_link() {
-  let mut store = create_heap_store::<usize>().expect("Failed to create store");
+fn test_delete_link() -> Result<(), usize> {
+  let mut store = create_heap_store::<usize>()?;
 
-  let a = store.create_point().expect("Failed to create point");
+  let a = store.create_point()?;
 
-  store.delete_link(a).expect("Failed to delete link");
+  store.delete_link(a)?;
 
   assert!(store.get(a).is_none());
+  Ok(())
 }
 
 #[test]
-fn test_search() {
-  let mut store = create_heap_store::<usize>().expect("Failed to create store");
+fn test_search() -> Result<(), usize> {
+  let mut store = create_heap_store::<usize>()?;
 
-  let a = store.create_point().expect("Failed to create point a");
-  let b = store.create_point().expect("Failed to create point b");
-  let c = store.create_link(a, b).expect("Failed to create link");
+  let a = store.create_point()?;
+  let b = store.create_point()?;
+  let c = store.create_link(a, b)?;
 
   let found = store.search(a, b);
   assert_eq!(found, Some(c));
 
   let not_found = store.search(b, a);
   assert_eq!(not_found, None);
+  Ok(())
 }
 
 #[test]
-fn test_count() {
-  let mut store = create_heap_store::<usize>().expect("Failed to create store");
+fn test_count() -> Result<(), usize> {
+  let mut store = create_heap_store::<usize>()?;
 
   assert_eq!(store.count_all(), 0);
 
-  let _a = store.create_point().expect("Failed to create point a");
+  let _a = store.create_point()?;
   assert_eq!(store.count_all(), 1);
 
-  let _b = store.create_point().expect("Failed to create point b");
+  let _b = store.create_point()?;
   assert_eq!(store.count_all(), 2);
 
-  let _c = store.create_link(1, 2).expect("Failed to create link");
+  let _c = store.create_link(1, 2)?;
   assert_eq!(store.count_all(), 3);
+  Ok(())
 }
 
 #[test]
-fn test_rebase() {
-  let mut store = create_heap_store::<usize>().expect("Failed to create store");
+fn test_rebase() -> Result<(), usize> {
+  let mut store = create_heap_store::<usize>()?;
 
-  let a = store.create_point().expect("Failed to create point a");
-  let b = store.create_point().expect("Failed to create point b");
+  let a = store.create_point()?;
+  let b = store.create_point()?;
 
-  let c = store.create_point().expect("Failed to create point c");
-  store.update_link(c, c, a).expect("Failed to update link c");
+  let c = store.create_point()?;
+  store.update_link(c, c, a)?;
 
-  let d = store.create_point().expect("Failed to create point d");
-  store.update_link(d, a, d).expect("Failed to update link d");
+  let d = store.create_point()?;
+  store.update_link(d, a, d)?;
 
-  // Verify initial state
   let links: Vec<_> = store.iter().collect();
   assert_eq!(
     links,
@@ -105,10 +110,8 @@ fn test_rebase() {
     ]
   );
 
-  // Rebase a to b
-  store.rebase(a, b).expect("Failed to rebase");
+  store.rebase(a, b)?;
 
-  // Verify after rebase
   let links: Vec<_> = store.iter().collect();
   assert_eq!(
     links,
@@ -119,55 +122,57 @@ fn test_rebase() {
       Link::new(d, b, d)
     ]
   );
+  Ok(())
 }
 
 #[test]
-fn test_each() {
-  let mut store = create_heap_store::<usize>().expect("Failed to create store");
+fn test_each() -> Result<(), usize> {
+  let mut store = create_heap_store::<usize>()?;
 
-  let a = store.create_point().expect("Failed to create point a");
-  let b = store.create_point().expect("Failed to create point b");
-  let _c = store.create_link(a, b).expect("Failed to create link");
+  let a = store.create_point()?;
+  let b = store.create_point()?;
+  let _c = store.create_link(a, b)?;
 
   let mut count = 0;
-  store.each(&[], &mut |_link| {
+  store.each([], &mut |_link| {
     count += 1;
     Flow::Continue
   });
 
   assert_eq!(count, 3);
+  Ok(())
 }
 
 #[test]
-fn test_each_with_query() {
-  let mut store = create_heap_store::<usize>().expect("Failed to create store");
+fn test_each_with_query() -> Result<(), usize> {
+  let mut store = create_heap_store::<usize>()?;
 
-  let a = store.create_point().expect("Failed to create point a");
-  let b = store.create_point().expect("Failed to create point b");
-  let _c = store.create_link(a, b).expect("Failed to create link");
+  let a = store.create_point()?;
+  let b = store.create_point()?;
+  let _c = store.create_link(a, b)?;
 
-  let any = store.constants().any;
   let mut found_links = Vec::new();
 
-  store.each(&[any, a, any], &mut |link| {
+  store.each([0, a, 0], &mut |link| {
     found_links.push(link);
     Flow::Continue
   });
 
-  // Should find link c (which has source = a)
-  assert_eq!(found_links.len(), 2); // link a and link c
+  assert_eq!(found_links.len(), 2);
+  Ok(())
 }
 
 #[test]
-fn test_get_or_create() {
-  let mut store = create_heap_store::<usize>().expect("Failed to create store");
+fn test_get_or_create() -> Result<(), usize> {
+  let mut store = create_heap_store::<usize>()?;
 
-  let a = store.create_point().expect("Failed to create point a");
-  let b = store.create_point().expect("Failed to create point b");
+  let a = store.create_point()?;
+  let b = store.create_point()?;
 
-  let c1 = store.get_or_create(a, b).expect("Failed to get or create");
-  let c2 = store.get_or_create(a, b).expect("Failed to get or create");
+  let c1 = store.get_or_create(a, b)?;
+  let c2 = store.get_or_create(a, b)?;
 
   assert_eq!(c1, c2);
-  assert_eq!(store.count_all(), 3); // Only a, b, and c (not duplicated)
+  assert_eq!(store.count_all(), 3);
+  Ok(())
 }

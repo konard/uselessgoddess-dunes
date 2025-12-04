@@ -1,10 +1,8 @@
-use {
-  crate::{
-    Constants, DoubletsError, Flow, Link, LinkIndex, Links, ReadHandler,
-    Result, WriteHandler,
-  },
-  mem::{Alloc, RawMem},
+use crate::{
+  Error, Flow, Index, Link, Links, ReadHandler, Result, WriteHandler,
 };
+
+use mem::{Alloc, RawMem};
 
 /// Raw link data stored in memory
 ///
@@ -16,7 +14,6 @@ use {
 pub struct RawLink {
   source: usize,
   target: usize,
-  // Internal flag: if this is usize::MAX, link is in free list
   is_free: usize,
 }
 
@@ -28,60 +25,58 @@ unsafe impl bytemuck::Zeroable for RawLink {}
 /// This is a simplified implementation that stores links in a flat
 /// array. More sophisticated indexing (like the old tree-based
 /// approach) can be added later.
-pub struct DoubletsStore<T, M = Alloc<RawLink>>
+pub struct Store<L, M = Alloc<RawLink>>
 where
-  T: LinkIndex,
+  L: Index,
   M: RawMem<Item = RawLink> + Send + Sync,
 {
   mem: M,
-  constants: Constants<T>,
   allocated: usize,
   free_count: usize,
   first_free: Option<usize>,
+  _phantom: core::marker::PhantomData<L>,
 }
 
-impl<T, M> DoubletsStore<T, M>
+impl<L, M> Store<L, M>
 where
-  T: LinkIndex,
+  L: Index,
   M: RawMem<Item = RawLink> + Send + Sync,
 {
   /// Create a new doublets store with default capacity
-  pub fn new(mut mem: M) -> Result<Self, T> {
-    // Initial allocation - must call .zeroed() to mark memory as initialized
-    mem.grow(1024).map_err(|_| DoubletsError::AllocationFailed)?.zeroed();
+  pub fn new(mut mem: M) -> Result<Self, L> {
+    mem.grow(1024).map_err(|_| Error::AllocationFailed)?.zeroed();
 
     Ok(Self {
       mem,
-      constants: Constants::new(1024),
-      allocated: 1, // Start at 1, reserve 0 for header/special use
+      allocated: 1,
       free_count: 0,
       first_free: None,
+      _phantom: core::marker::PhantomData,
     })
   }
 
   /// Get a raw link from memory
   #[inline]
-  fn get_raw(&self, index: usize) -> Option<&RawLink> {
+  fn repr_at(&self, index: usize) -> Option<&RawLink> {
     let slice = self.mem.as_slice();
     slice.get(index)
   }
 
   /// Get a mutable raw link from memory
   #[inline]
-  fn get_raw_mut(&mut self, index: usize) -> Option<&mut RawLink> {
+  fn repr_mut_at(&mut self, index: usize) -> Option<&mut RawLink> {
     let slice = self.mem.as_mut_slice();
     slice.get_mut(index)
   }
 
   /// Check if a link exists and is not in free list
-  fn exists(&self, index: T) -> bool {
+  fn exists(&self, index: L) -> bool {
     let idx = index.as_usize();
     if index.is_zero() || idx >= self.allocated {
       return false;
     }
 
-    // Check if it's in use (not in free list)
-    if let Some(raw) = self.get_raw(idx) {
+    if let Some(raw) = self.repr_at(idx) {
       raw.is_free != usize::MAX
     } else {
       false
@@ -89,61 +84,50 @@ where
   }
 
   /// Allocate a new link index
-  fn allocate_index(&mut self) -> Result<T, T> {
-    // Try to use free list first
+  fn allocate_index(&mut self) -> Result<L, L> {
     if let Some(free_index) = self.first_free {
-      let next_free = if let Some(raw) = self.get_raw(free_index) {
+      let next_free = if let Some(raw) = self.repr_at(free_index) {
         if raw.source == 0 { None } else { Some(raw.source) }
       } else {
         None
       };
 
-      // Clear the is_free flag when reusing
-      if let Some(raw) = self.get_raw_mut(free_index) {
+      if let Some(raw) = self.repr_mut_at(free_index) {
         raw.is_free = 0;
       }
 
       self.first_free = next_free;
       self.free_count -= 1;
-      return Ok(T::from_usize(free_index));
+      return Ok(L::from_usize(free_index));
     }
 
-    // Allocate new index
     let index = self.allocated;
     self.allocated += 1;
 
-    // Ensure we have enough memory
     if self.allocated >= self.mem.as_slice().len() {
       let current_len = self.mem.as_slice().len();
-      let addition = current_len; // Double the capacity
-      self
-        .mem
-        .grow(addition)
-        .map_err(|_| DoubletsError::AllocationFailed)?
-        .zeroed();
-      self.constants = Constants::new(current_len + addition);
+      let addition = current_len;
+      self.mem.grow(addition).map_err(|_| Error::AllocationFailed)?.zeroed();
     }
 
-    // Initialize the new link slot
-    if let Some(raw) = self.get_raw_mut(index) {
+    if let Some(raw) = self.repr_mut_at(index) {
       raw.source = 0;
       raw.target = 0;
       raw.is_free = 0;
     }
 
-    Ok(T::from_usize(index))
+    Ok(L::from_usize(index))
   }
 
   /// Free a link index
-  fn free_index(&mut self, index: T) {
+  fn free_index(&mut self, index: L) {
     let idx = index.as_usize();
     let next_free = self.first_free.unwrap_or(0);
 
-    if let Some(raw) = self.get_raw_mut(idx) {
-      // Add to free list
+    if let Some(raw) = self.repr_mut_at(idx) {
       raw.source = next_free;
       raw.target = 0;
-      raw.is_free = usize::MAX; // Mark as freed
+      raw.is_free = usize::MAX;
     }
 
     self.first_free = Some(idx);
@@ -156,28 +140,22 @@ where
   }
 }
 
-impl<T, M> Links<T> for DoubletsStore<T, M>
+impl<L, M> Links<L> for Store<L, M>
 where
-  T: LinkIndex,
+  L: Index,
   M: RawMem<Item = RawLink> + Send + Sync,
 {
-  fn constants(&self) -> &Constants<T> {
-    &self.constants
-  }
-
-  fn count(&self, query: &[T]) -> T {
-    let any = self.constants.any;
-
-    match query.len() {
-      0 => T::from_usize(self.count_total()),
+  fn count<const N: usize>(&self, query: [L; N]) -> L {
+    match N {
+      0 => L::from_usize(self.count_total()),
       1 => {
         let index = query[0];
-        if index == any {
-          T::from_usize(self.count_total())
+        if index == L::ANY {
+          L::from_usize(self.count_total())
         } else if self.exists(index) {
-          T::from_usize(1)
+          L::ONE
         } else {
-          T::zero()
+          L::ZERO
         }
       }
       _ => {
@@ -186,51 +164,50 @@ where
           count += 1;
           Flow::Continue
         });
-        T::from_usize(count)
+        L::from_usize(count)
       }
     }
   }
 
-  fn create(
+  fn create<const N: usize, H: WriteHandler<L>>(
     &mut self,
-    query: &[T],
-    handler: WriteHandler<'_, T>,
-  ) -> Result<Flow, T> {
+    query: [L; N],
+    handler: &mut H,
+  ) -> Result<Flow, L> {
     let index = self.allocate_index()?;
     let before = Link::nothing();
 
-    let (source, target) = match query.len() {
-      0 => (T::zero(), T::zero()),
+    let (source, target) = match N {
+      0 => (L::ZERO, L::ZERO),
       1 => (query[0], query[0]),
-      2 => (query[0], query[1]),
       _ => (query[0], query[1]),
     };
 
-    // Set the link data
-    if let Some(raw) = self.get_raw_mut(index.as_usize()) {
+    if let Some(raw) = self.repr_mut_at(index.as_usize()) {
       raw.source = source.as_usize();
       raw.target = target.as_usize();
-      raw.is_free = 0; // Ensure it's not marked as free
+      raw.is_free = 0;
     }
 
     let after = Link::new(index, source, target);
-    Ok(handler(before, after))
+    Ok(handler.handle(before, after))
   }
 
-  fn each(&self, query: &[T], handler: ReadHandler<'_, T>) -> Flow {
-    let any = self.constants.any;
-
-    if query.is_empty() {
-      // Iterate all links
+  fn each<const N: usize, H: ReadHandler<L>>(
+    &self,
+    query: [L; N],
+    handler: &mut H,
+  ) -> Flow {
+    if N == 0 {
       for i in 1..self.allocated {
-        let index = T::from_usize(i);
+        let index = L::from_usize(i);
         if self.exists(index)
-          && let Some(raw) = self.get_raw(i)
+          && let Some(raw) = self.repr_at(i)
         {
-          let source = T::from_usize(raw.source);
-          let target = T::from_usize(raw.target);
+          let source = L::from_usize(raw.source);
+          let target = L::from_usize(raw.target);
           let link = Link::new(index, source, target);
-          if handler(link) == Flow::Break {
+          if handler.handle(link) == Flow::Break {
             return Flow::Break;
           }
         }
@@ -240,44 +217,43 @@ where
 
     let index_query = query[0];
 
-    if query.len() == 1 {
-      if index_query == any {
-        return self.each(&[], handler);
+    if N == 1 {
+      if index_query == L::ANY {
+        return self.each([], handler);
       } else if self.exists(index_query)
-        && let Some(raw) = self.get_raw(index_query.as_usize())
+        && let Some(raw) = self.repr_at(index_query.as_usize())
       {
-        let source = T::from_usize(raw.source);
-        let target = T::from_usize(raw.target);
-        return handler(Link::new(index_query, source, target));
+        let source = L::from_usize(raw.source);
+        let target = L::from_usize(raw.target);
+        return handler.handle(Link::new(index_query, source, target));
       }
       return Flow::Continue;
     }
 
-    let source = if query.len() >= 2 { query[1] } else { any };
-    let target = if query.len() >= 3 { query[2] } else { any };
+    let source = if N >= 2 { query[1] } else { L::ANY };
+    let target = if N >= 3 { query[2] } else { L::ANY };
 
-    // Query format: [index, source, target] where any component can be 'any'
     for i in 1..self.allocated {
-      let index = T::from_usize(i);
+      let index = L::from_usize(i);
       if !self.exists(index) {
         continue;
       }
 
-      let raw = match self.get_raw(i) {
+      let raw = match self.repr_at(i) {
         Some(r) => r,
         None => continue,
       };
 
-      let raw_source = T::from_usize(raw.source);
-      let raw_target = T::from_usize(raw.target);
+      let raw_source = L::from_usize(raw.source);
+      let raw_target = L::from_usize(raw.target);
 
-      let matches = (index_query == any || index_query == index)
-        && (source == any || source == raw_source)
-        && (target == any || target == raw_target);
+      let matches = (index_query == L::ANY || index_query == index)
+        && (source == L::ANY || source == raw_source)
+        && (target == L::ANY || target == raw_target);
 
       if matches {
         let link = Link::new(index, raw_source, raw_target);
-        if handler(link) == Flow::Break {
+        if handler.handle(link) == Flow::Break {
           return Flow::Break;
         }
       }
@@ -286,74 +262,73 @@ where
     Flow::Continue
   }
 
-  fn update(
+  fn update<const N1: usize, const N2: usize, H: WriteHandler<L>>(
     &mut self,
-    query: &[T],
-    change: &[T],
-    handler: WriteHandler<'_, T>,
-  ) -> Result<Flow, T> {
-    if query.is_empty() || change.is_empty() {
-      return Err(DoubletsError::InvalidQuery);
+    query: [L; N1],
+    change: [L; N2],
+    handler: &mut H,
+  ) -> Result<Flow, L> {
+    if N1 == 0 || N2 == 0 {
+      return Err(Error::InvalidQuery);
     }
 
     let index = query[0];
     if !self.exists(index) {
-      return Err(DoubletsError::NotExists(index));
+      return Err(Error::NotExists(index));
     }
 
-    let before = self.get(index).ok_or(DoubletsError::NotExists(index))?;
+    let before = self.get(index).ok_or(Error::NotExists(index))?;
 
-    let new_source = if change.len() >= 2 { change[1] } else { before.source };
-    let new_target = if change.len() >= 3 { change[2] } else { before.target };
+    let new_source = if N2 >= 2 { change[1] } else { before.source };
+    let new_target = if N2 >= 3 { change[2] } else { before.target };
 
-    // Update the link
-    if let Some(raw) = self.get_raw_mut(index.as_usize()) {
+    if let Some(raw) = self.repr_mut_at(index.as_usize()) {
       raw.source = new_source.as_usize();
       raw.target = new_target.as_usize();
     }
 
     let after = Link::new(index, new_source, new_target);
-    Ok(handler(before, after))
+    Ok(handler.handle(before, after))
   }
 
-  fn delete(
+  fn delete<const N: usize, H: WriteHandler<L>>(
     &mut self,
-    query: &[T],
-    handler: WriteHandler<'_, T>,
-  ) -> Result<Flow, T> {
-    if query.is_empty() {
-      return Err(DoubletsError::InvalidQuery);
+    query: [L; N],
+    handler: &mut H,
+  ) -> Result<Flow, L> {
+    if N == 0 {
+      return Err(Error::InvalidQuery);
     }
 
     let index = query[0];
     if !self.exists(index) {
-      return Err(DoubletsError::NotExists(index));
+      return Err(Error::NotExists(index));
     }
 
-    let before = self.get(index).ok_or(DoubletsError::NotExists(index))?;
+    let before = self.get(index).ok_or(Error::NotExists(index))?;
 
     self.free_index(index);
 
     let after = Link::nothing();
-    Ok(handler(before, after))
+    Ok(handler.handle(before, after))
   }
 
-  fn get(&self, index: T) -> Option<Link<T>> {
+  fn get(&self, index: L) -> Option<Link<L>> {
     if !self.exists(index) {
       return None;
     }
 
-    let raw = self.get_raw(index.as_usize())?;
-    let source = T::from_usize(raw.source);
-    let target = T::from_usize(raw.target);
+    let raw = self.repr_at(index.as_usize())?;
+    let source = L::from_usize(raw.source);
+    let target = L::from_usize(raw.target);
     Some(Link::new(index, source, target))
   }
 }
 
 /// Create a doublets store with heap allocation
-pub fn create_heap_store<T>() -> Result<DoubletsStore<T, Alloc<RawLink>>, T>
+pub fn create_heap_store<L>() -> Result<Store<L, Alloc<RawLink>>, L>
 where
-  T: LinkIndex,
+  L: Index,
 {
-  DoubletsStore::new(Alloc::new())
+  Store::new(Alloc::new())
 }
