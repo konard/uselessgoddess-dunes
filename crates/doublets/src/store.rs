@@ -278,6 +278,11 @@ where
   fn detach_from_target_tree(&mut self, index: usize) {
     let mut tree = TargetTree { mem: &mut self.mem };
     self.target_root = tree.remove(self.target_root, index);
+
+    // Clear the node's tree pointers after removal
+    if let Some(raw) = self.repr_mut_at(index) {
+      raw.target_tree = Node::default();
+    }
   }
 
   /// Search for a link with exact source and target in source tree
