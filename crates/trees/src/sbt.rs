@@ -188,8 +188,8 @@ pub trait SizeBalanced<T: Idx>: Tree<T> {
 
   /// Internal remove implementation - returns true if tree becomes empty
   ///
-  /// Based on C# reference implementation from linksplatform/Collections.Methods
-  /// Decrements sizes while traversing to find the node (not after removal)
+  /// Based on C# reference from linksplatform/Collections.Methods
+  /// Decrements sizes while traversing to find node (not after removal)
   ///
   /// # Safety
   ///
