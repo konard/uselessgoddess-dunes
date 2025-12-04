@@ -88,76 +88,45 @@ where
   }
 }
 
+// Generic benchmark registration to avoid repetition
+fn register_benchmarks<S, T>(
+  c: &mut Criterion,
+  tree_name: &str,
+  sizes: &[usize],
+) where
+  S: BenchStore<T> + 'static,
+  T: Idx + From<usize> + 'static,
+{
+  // Insert-only benchmarks
+  for &size in sizes {
+    c.bench_function(&format!("{}::insert({})", tree_name, size), |b| {
+      b.iter(bench_insert_impl::<S, T>(size))
+    });
+  }
+
+  // Insert + search benchmarks
+  for &size in sizes {
+    c.bench_function(&format!("{}::insert_search({})", tree_name, size), |b| {
+      b.iter(bench_insert_and_search_impl::<S, T>(size))
+    });
+  }
+
+  // Full cycle (insert + remove) benchmarks
+  for &size in sizes {
+    c.bench_function(&format!("{}::full_cycle({})", tree_name, size), |b| {
+      b.iter(bench_insert_remove_impl::<S, T>(size))
+    });
+  }
+}
+
 fn sbt_benchmarks(c: &mut Criterion) {
-  c.bench_function("sbt_insert_100", |b| {
-    b.iter(bench_insert_impl::<Store<usize>, usize>(100))
-  });
-
-  c.bench_function("sbt_insert_1000", |b| {
-    b.iter(bench_insert_impl::<Store<usize>, usize>(1_000))
-  });
-
-  c.bench_function("sbt_insert_10000", |b| {
-    b.iter(bench_insert_impl::<Store<usize>, usize>(10_000))
-  });
-
-  c.bench_function("sbt_insert_search_100", |b| {
-    b.iter(bench_insert_and_search_impl::<Store<usize>, usize>(100))
-  });
-
-  c.bench_function("sbt_insert_search_1000", |b| {
-    b.iter(bench_insert_and_search_impl::<Store<usize>, usize>(1_000))
-  });
-
-  c.bench_function("sbt_insert_search_10000", |b| {
-    b.iter(bench_insert_and_search_impl::<Store<usize>, usize>(10_000))
-  });
-
-  c.bench_function("sbt_full_cycle_100", |b| {
-    b.iter(bench_insert_remove_impl::<Store<usize>, usize>(100))
-  });
-
-  c.bench_function("sbt_full_cycle_1000", |b| {
-    b.iter(bench_insert_remove_impl::<Store<usize>, usize>(1_000))
-  });
+  const SIZES: &[usize] = &[100, 1_000, 10_000];
+  register_benchmarks::<Store<usize>, usize>(c, "sbt", SIZES);
 }
 
 fn art_benchmarks(c: &mut Criterion) {
-  c.bench_function("art_insert_100", |b| {
-    b.iter(bench_insert_impl::<common::ArtStore<usize>, usize>(100))
-  });
-
-  c.bench_function("art_insert_1000", |b| {
-    b.iter(bench_insert_impl::<common::ArtStore<usize>, usize>(1_000))
-  });
-
-  c.bench_function("art_insert_10000", |b| {
-    b.iter(bench_insert_impl::<common::ArtStore<usize>, usize>(10_000))
-  });
-
-  c.bench_function("art_insert_search_100", |b| {
-    b.iter(bench_insert_and_search_impl::<common::ArtStore<usize>, usize>(100))
-  });
-
-  c.bench_function("art_insert_search_1000", |b| {
-    b.iter(bench_insert_and_search_impl::<common::ArtStore<usize>, usize>(
-      1_000,
-    ))
-  });
-
-  c.bench_function("art_insert_search_10000", |b| {
-    b.iter(bench_insert_and_search_impl::<common::ArtStore<usize>, usize>(
-      10_000,
-    ))
-  });
-
-  c.bench_function("art_full_cycle_100", |b| {
-    b.iter(bench_insert_remove_impl::<common::ArtStore<usize>, usize>(100))
-  });
-
-  c.bench_function("art_full_cycle_1000", |b| {
-    b.iter(bench_insert_remove_impl::<common::ArtStore<usize>, usize>(1_000))
-  });
+  const SIZES: &[usize] = &[100, 1_000, 10_000];
+  register_benchmarks::<common::ArtStore<usize>, usize>(c, "art", SIZES);
 }
 
 criterion_group!(benches, sbt_benchmarks, art_benchmarks);
