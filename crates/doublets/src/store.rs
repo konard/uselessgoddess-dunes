@@ -261,6 +261,11 @@ where
   fn detach_from_source_tree(&mut self, index: usize) {
     let mut tree = SourceTree { mem: &mut self.mem };
     self.source_root = tree.remove(self.source_root, index);
+
+    // Clear the node's tree pointers after removal
+    if let Some(raw) = self.repr_mut_at(index) {
+      raw.source_tree = Node::default();
+    }
   }
 
   /// Attach a link to the target tree
@@ -338,16 +343,25 @@ where
 
     // When searching by source with wildcard target
     if target == usize::MAX {
-      // Traverse left subtree for nodes with source <= current.source
-      if source <= raw.source
-        && self.traverse_source_tree(
-          raw.source_tree.left,
-          source,
-          target,
-          handler,
-        ) == Flow::Break
+      // Do an in-order traversal, visiting only nodes where source matches
+      // Since tree is ordered by (source, target), matching nodes are
+      // contiguous in in-order traversal
+
+      // Traverse left subtree
+      if self.traverse_source_tree(
+        raw.source_tree.left,
+        source,
+        target,
+        handler,
+      ) == Flow::Break
       {
         return Flow::Break;
+      }
+
+      // If current node's source > search source, we're past the range
+      // (all remaining nodes in in-order will also have source >= current)
+      if raw.source > source {
+        return Flow::Continue;
       }
 
       // Check current node if source matches
@@ -362,17 +376,13 @@ where
         }
       }
 
-      // Traverse right subtree for nodes with source >= current.source
-      if source >= raw.source
-        && self.traverse_source_tree(
-          raw.source_tree.right,
-          source,
-          target,
-          handler,
-        ) == Flow::Break
-      {
-        return Flow::Break;
-      }
+      // Traverse right subtree
+      return self.traverse_source_tree(
+        raw.source_tree.right,
+        source,
+        target,
+        handler,
+      );
     } else {
       // Exact (source, target) search - can prune efficiently
       // Traverse left subtree if it might contain matches
@@ -436,16 +446,25 @@ where
 
     // When searching by target with wildcard source
     if source == usize::MAX {
-      // Traverse left subtree for nodes with target <= current.target
-      if target <= raw.target
-        && self.traverse_target_tree(
-          raw.target_tree.left,
-          target,
-          source,
-          handler,
-        ) == Flow::Break
+      // Do an in-order traversal, visiting only nodes where target matches
+      // Since tree is ordered by (target, source), matching nodes are
+      // contiguous in in-order traversal
+
+      // Traverse left subtree
+      if self.traverse_target_tree(
+        raw.target_tree.left,
+        target,
+        source,
+        handler,
+      ) == Flow::Break
       {
         return Flow::Break;
+      }
+
+      // If current node's target > search target, we're past the range
+      // (all remaining nodes in in-order will also have target >= current)
+      if raw.target > target {
+        return Flow::Continue;
       }
 
       // Check current node if target matches
@@ -460,17 +479,13 @@ where
         }
       }
 
-      // Traverse right subtree for nodes with target >= current.target
-      if target >= raw.target
-        && self.traverse_target_tree(
-          raw.target_tree.right,
-          target,
-          source,
-          handler,
-        ) == Flow::Break
-      {
-        return Flow::Break;
-      }
+      // Traverse right subtree
+      return self.traverse_target_tree(
+        raw.target_tree.right,
+        target,
+        source,
+        handler,
+      );
     } else {
       // Exact (target, source) search - can prune efficiently
       // Traverse left subtree if it might contain matches
@@ -707,8 +722,6 @@ where
       if let Some(raw) = self.repr_mut_at(idx) {
         raw.source = new_source.as_usize();
         raw.target = new_target.as_usize();
-        raw.source_tree = Node::default();
-        raw.target_tree = Node::default();
       }
 
       // Reattach to new positions in both trees
