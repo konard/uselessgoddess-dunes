@@ -120,6 +120,10 @@ fn sbt_benchmarks(c: &mut Criterion) {
   c.bench_function("sbt_full_cycle_1000", |b| {
     b.iter(bench_insert_remove_impl::<Store<usize>, usize>(1_000))
   });
+
+  c.bench_function("sbt_full_cycle_10000", |b| {
+    b.iter(bench_insert_remove_impl::<Store<usize>, usize>(10_000))
+  });
 }
 
 fn art_benchmarks(c: &mut Criterion) {
@@ -157,6 +161,10 @@ fn art_benchmarks(c: &mut Criterion) {
 
   c.bench_function("art_full_cycle_1000", |b| {
     b.iter(bench_insert_remove_impl::<common::ArtStore<usize>, usize>(1_000))
+  });
+
+  c.bench_function("art_full_cycle_10000", |b| {
+    b.iter(bench_insert_remove_impl::<common::ArtStore<usize>, usize>(10_000))
   });
 }
 
