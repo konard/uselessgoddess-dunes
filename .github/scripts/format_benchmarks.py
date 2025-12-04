@@ -110,12 +110,19 @@ def parse_bench_output(output_file):
 
         chart_name = f'{bench_type} ({n} elements)'
 
+        # Extract tree type from benchmark name (sbt_ or art_)
+        tree_type = 'unknown'
+        if bench_name.startswith('sbt_'):
+            tree_type = 'SBT'
+        elif bench_name.startswith('art_'):
+            tree_type = 'ART'
+
         results.append({
             'name': chart_name,
             'unit': 'M links/sec',
             'value': round(million_links_per_second, 2),
             'range': f'± {round(range_value, 2)}',
-            'extra': f'{num_operations} operations in {time_ns:.2f} ns/iter'
+            'extra': f'tree={tree_type} ops={num_operations} time={time_ns:.2f}ns'
         })
 
     # If criterion format didn't match, try old format
@@ -163,12 +170,19 @@ def parse_bench_output(output_file):
 
             chart_name = f'{bench_type} ({n} elements)'
 
+            # Extract tree type from benchmark name (sbt_ or art_)
+            tree_type = 'unknown'
+            if bench_name.startswith('sbt_'):
+                tree_type = 'SBT'
+            elif bench_name.startswith('art_'):
+                tree_type = 'ART'
+
             results.append({
                 'name': chart_name,
                 'unit': 'links/sec',
                 'value': int(links_per_second),
                 'range': str(int(range_value)),
-                'extra': f'{num_operations} operations in {time_ns:.2f} ns/iter'
+                'extra': f'tree={tree_type} ops={num_operations} time={time_ns:.2f}ns'
             })
 
     return results
