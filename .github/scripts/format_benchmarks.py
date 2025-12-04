@@ -101,34 +101,63 @@ def parse_bench_output(output_file):
         # Use the average of the differences as the range (in millions)
         range_value = (links_per_second_high - links_per_second_low) / 2 / 1_000_000
 
+        # Determine if this is a doublets benchmark
+        is_doublets = any(keyword in bench_name for keyword in [
+            'create_point', 'create_link', 'search', 'iterate', 'create_million'
+        ])
+
         # Create a more descriptive name for the chart
         # Group benchmarks by operation type
-        if 'insert_search' in bench_name:
-            bench_type = 'Insert + Search'
-        elif 'full_cycle' in bench_name:
-            bench_type = 'Insert + Remove'
-        elif 'insert' in bench_name:
-            bench_type = 'Insert Only'
+        if is_doublets:
+            # For doublets benchmarks, use a more descriptive name
+            if 'create_point' in bench_name:
+                chart_name = 'Create Point'
+            elif 'create_link' in bench_name:
+                chart_name = 'Create Link'
+            elif 'search' in bench_name:
+                chart_name = 'Search Links'
+            elif 'iterate' in bench_name:
+                chart_name = 'Iterate All Links'
+            elif 'create_million' in bench_name:
+                chart_name = 'Create Million Points'
+            else:
+                chart_name = bench_name
         else:
-            bench_type = 'Unknown'
+            # For tree benchmarks, use the existing naming pattern
+            if 'insert_search' in bench_name:
+                bench_type = 'Insert + Search'
+            elif 'full_cycle' in bench_name:
+                bench_type = 'Insert + Remove'
+            elif 'insert' in bench_name:
+                bench_type = 'Insert Only'
+            else:
+                bench_type = 'Unknown'
+            chart_name = f'{bench_type} ({n} elements)'
 
-        chart_name = f'{bench_type} ({n} elements)'
-
-        # Extract tree type from benchmark name
+        # Extract tree type and category from benchmark name
         # New format: sbt::insert(100) or art::insert(100)
         # Old format: sbt_insert_100 or art_insert_100
         tree_type = 'unknown'
-        if bench_name.startswith('sbt::') or bench_name.startswith('sbt_'):
+
+        if is_doublets:
+            tree_type = 'N/A'
+            category = 'Doublets'
+        elif bench_name.startswith('sbt::') or bench_name.startswith('sbt_'):
             tree_type = 'SBT'
+            category = 'Trees'
         elif bench_name.startswith('art::') or bench_name.startswith('art_'):
             tree_type = 'ART'
+            category = 'Trees'
+        else:
+            # Default to Trees for backward compatibility
+            category = 'Trees'
 
         results.append({
             'name': chart_name,
             'unit': 'M links/sec',
             'value': round(million_links_per_second, 2),
             'range': f'± {round(range_value, 2)}',
-            'extra': f'tree={tree_type} ops={num_operations} time={time_ns:.2f}ns'
+            'extra': f'category={category} tree={tree_type} ops={num_operations} time={time_ns:.2f}ns'
         })
 
     # If criterion format didn't match, try old format
@@ -169,33 +198,62 @@ def parse_bench_output(output_file):
             links_per_second_low = num_operations / time_high if time_high > 0 else links_per_second
             range_value = (links_per_second_high - links_per_second_low) / 2
 
+            # Determine if this is a doublets benchmark
+            is_doublets_old = any(keyword in bench_name for keyword in [
+                'create_point', 'create_link', 'search', 'iterate', 'create_million'
+            ])
+
             # Create a more descriptive name for the chart
-            if 'insert_search' in bench_name:
-                bench_type = 'Insert + Search'
-            elif 'full_cycle' in bench_name:
-                bench_type = 'Insert + Remove'
-            elif 'insert' in bench_name:
-                bench_type = 'Insert Only'
+            if is_doublets_old:
+                # For doublets benchmarks, use a more descriptive name
+                if 'create_point' in bench_name:
+                    chart_name = 'Create Point'
+                elif 'create_link' in bench_name:
+                    chart_name = 'Create Link'
+                elif 'search' in bench_name:
+                    chart_name = 'Search Links'
+                elif 'iterate' in bench_name:
+                    chart_name = 'Iterate All Links'
+                elif 'create_million' in bench_name:
+                    chart_name = 'Create Million Points'
+                else:
+                    chart_name = bench_name
             else:
-                bench_type = 'Unknown'
+                # For tree benchmarks, use the existing naming pattern
+                if 'insert_search' in bench_name:
+                    bench_type = 'Insert + Search'
+                elif 'full_cycle' in bench_name:
+                    bench_type = 'Insert + Remove'
+                elif 'insert' in bench_name:
+                    bench_type = 'Insert Only'
+                else:
+                    bench_type = 'Unknown'
+                chart_name = f'{bench_type} ({n} elements)'
 
-            chart_name = f'{bench_type} ({n} elements)'
-
-            # Extract tree type from benchmark name
+            # Extract tree type and category from benchmark name
             # New format: sbt::insert(100) or art::insert(100)
             # Old format: sbt_insert_100 or art_insert_100
             tree_type = 'unknown'
-            if bench_name.startswith('sbt::') or bench_name.startswith('sbt_'):
+
+            if is_doublets_old:
+                tree_type = 'N/A'
+                category = 'Doublets'
+            elif bench_name.startswith('sbt::') or bench_name.startswith('sbt_'):
                 tree_type = 'SBT'
+                category = 'Trees'
             elif bench_name.startswith('art::') or bench_name.startswith('art_'):
                 tree_type = 'ART'
+                category = 'Trees'
+            else:
+                # Default to Trees for backward compatibility
+                category = 'Trees'
 
             results.append({
                 'name': chart_name,
                 'unit': 'links/sec',
                 'value': int(links_per_second),
                 'range': str(int(range_value)),
-                'extra': f'tree={tree_type} ops={num_operations} time={time_ns:.2f}ns'
+                'extra': f'category={category} tree={tree_type} ops={num_operations} time={time_ns:.2f}ns'
             })
 
     return results
