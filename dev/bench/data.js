@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764835127271,
+  "lastUpdate": 1764837247744,
   "repoUrl": "https://github.com/konard/uselessgoddess-dunes",
   "entries": {
     "Benchmark": [
@@ -366,6 +366,156 @@ window.BENCHMARK_DATA = {
             "range": "± 0.16",
             "unit": "M links/sec",
             "extra": "tree=ART ops=20000 time=177520.00ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "68294279+uselessgoddess@users.noreply.github.com",
+            "name": "uselessgoddess",
+            "username": "uselessgoddess"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "a64d46aed3074e33ad0d7cc48c1a61f403f2a027",
+          "message": "Merge pull request #31 from konard/issue-30-c40765cb9a35\n\nFix empty benchmark charts on github pages",
+          "timestamp": "2025-12-04T11:15:06+03:00",
+          "tree_id": "efb7e9c37993117a57890cc7eb9611b4f7efe8c8",
+          "url": "https://github.com/konard/uselessgoddess-dunes/commit/a64d46aed3074e33ad0d7cc48c1a61f403f2a027"
+        },
+        "date": 1764837247501,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "Insert Only (100 elements)",
+            "value": 60.39,
+            "range": "± 0.06",
+            "unit": "M links/sec",
+            "extra": "tree=SBT ops=100 time=1656.00ns"
+          },
+          {
+            "name": "Insert Only (1000 elements)",
+            "value": 43.25,
+            "range": "± 0.2",
+            "unit": "M links/sec",
+            "extra": "tree=SBT ops=1000 time=23119.00ns"
+          },
+          {
+            "name": "Insert Only (10000 elements)",
+            "value": 31.73,
+            "range": "± 0.14",
+            "unit": "M links/sec",
+            "extra": "tree=SBT ops=10000 time=315120.00ns"
+          },
+          {
+            "name": "Insert + Search (100 elements)",
+            "value": 87.98,
+            "range": "± 0.39",
+            "unit": "M links/sec",
+            "extra": "tree=SBT ops=200 time=2273.30ns"
+          },
+          {
+            "name": "Insert + Search (1000 elements)",
+            "value": 57.39,
+            "range": "± 0.11",
+            "unit": "M links/sec",
+            "extra": "tree=SBT ops=2000 time=34851.00ns"
+          },
+          {
+            "name": "Insert + Search (10000 elements)",
+            "value": 26.45,
+            "range": "± 0.02",
+            "unit": "M links/sec",
+            "extra": "tree=SBT ops=20000 time=756010.00ns"
+          },
+          {
+            "name": "Insert + Remove (100 elements)",
+            "value": 113.41,
+            "range": "± 0.24",
+            "unit": "M links/sec",
+            "extra": "tree=SBT ops=200 time=1763.50ns"
+          },
+          {
+            "name": "Insert + Remove (1000 elements)",
+            "value": 83.89,
+            "range": "± 0.32",
+            "unit": "M links/sec",
+            "extra": "tree=SBT ops=2000 time=23842.00ns"
+          },
+          {
+            "name": "Insert + Remove (10000 elements)",
+            "value": 62.68,
+            "range": "± 0.22",
+            "unit": "M links/sec",
+            "extra": "tree=SBT ops=20000 time=319060.00ns"
+          },
+          {
+            "name": "Insert Only (100 elements)",
+            "value": 67.79,
+            "range": "± 0.05",
+            "unit": "M links/sec",
+            "extra": "tree=ART ops=100 time=1475.10ns"
+          },
+          {
+            "name": "Insert Only (1000 elements)",
+            "value": 63.42,
+            "range": "± 0.03",
+            "unit": "M links/sec",
+            "extra": "tree=ART ops=1000 time=15767.00ns"
+          },
+          {
+            "name": "Insert Only (10000 elements)",
+            "value": 62.75,
+            "range": "± 0.31",
+            "unit": "M links/sec",
+            "extra": "tree=ART ops=10000 time=159350.00ns"
+          },
+          {
+            "name": "Insert + Search (100 elements)",
+            "value": 127.19,
+            "range": "± 0.51",
+            "unit": "M links/sec",
+            "extra": "tree=ART ops=200 time=1572.50ns"
+          },
+          {
+            "name": "Insert + Search (1000 elements)",
+            "value": 120.71,
+            "range": "± 0.11",
+            "unit": "M links/sec",
+            "extra": "tree=ART ops=2000 time=16569.00ns"
+          },
+          {
+            "name": "Insert + Search (10000 elements)",
+            "value": 119.8,
+            "range": "± 0.06",
+            "unit": "M links/sec",
+            "extra": "tree=ART ops=20000 time=166940.00ns"
+          },
+          {
+            "name": "Insert + Remove (100 elements)",
+            "value": 119.1,
+            "range": "± 0.22",
+            "unit": "M links/sec",
+            "extra": "tree=ART ops=200 time=1679.20ns"
+          },
+          {
+            "name": "Insert + Remove (1000 elements)",
+            "value": 113.11,
+            "range": "± 0.06",
+            "unit": "M links/sec",
+            "extra": "tree=ART ops=2000 time=17682.00ns"
+          },
+          {
+            "name": "Insert + Remove (10000 elements)",
+            "value": 112.82,
+            "range": "± 0.17",
+            "unit": "M links/sec",
+            "extra": "tree=ART ops=20000 time=177280.00ns"
           }
         ]
       }
