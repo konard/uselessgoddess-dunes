@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1764857240028,
+  "lastUpdate": 1764857964447,
   "repoUrl": "https://github.com/konard/uselessgoddess-dunes",
   "entries": {
     "Benchmark": [
@@ -966,6 +966,156 @@ window.BENCHMARK_DATA = {
             "range": "± 0.07",
             "unit": "M links/sec",
             "extra": "tree=ART ops=20000 time=175340.00ns"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "68294279+uselessgoddess@users.noreply.github.com",
+            "name": "uselessgoddess",
+            "username": "uselessgoddess"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "8d7e2cb1abf50144c901cf4c8729136c2a22c865",
+          "message": "Merge pull request #39 from konard/issue-38-873d9385e576\n\nAdd tabs to switch between Trees and Doublets benchmarks",
+          "timestamp": "2025-12-04T17:08:42+03:00",
+          "tree_id": "9732e309b631fa0a865b9dcda3652eea98eb2ded",
+          "url": "https://github.com/konard/uselessgoddess-dunes/commit/8d7e2cb1abf50144c901cf4c8729136c2a22c865"
+        },
+        "date": 1764857963796,
+        "tool": "customBiggerIsBetter",
+        "benches": [
+          {
+            "name": "Insert Only (100 elements)",
+            "value": 59.71,
+            "range": "± 0.24",
+            "unit": "M links/sec",
+            "extra": "category=Trees tree=SBT ops=100 time=1674.80ns"
+          },
+          {
+            "name": "Insert Only (1000 elements)",
+            "value": 41.87,
+            "range": "± 0.23",
+            "unit": "M links/sec",
+            "extra": "category=Trees tree=SBT ops=1000 time=23883.00ns"
+          },
+          {
+            "name": "Insert Only (10000 elements)",
+            "value": 31.85,
+            "range": "± 0.07",
+            "unit": "M links/sec",
+            "extra": "category=Trees tree=SBT ops=10000 time=313990.00ns"
+          },
+          {
+            "name": "Search Links",
+            "value": 88.53,
+            "range": "± 0.16",
+            "unit": "M links/sec",
+            "extra": "category=Doublets tree=N/A ops=200 time=2259.10ns"
+          },
+          {
+            "name": "Search Links",
+            "value": 54.9,
+            "range": "± 0.35",
+            "unit": "M links/sec",
+            "extra": "category=Doublets tree=N/A ops=2000 time=36428.00ns"
+          },
+          {
+            "name": "Search Links",
+            "value": 26.46,
+            "range": "± 0.05",
+            "unit": "M links/sec",
+            "extra": "category=Doublets tree=N/A ops=20000 time=755750.00ns"
+          },
+          {
+            "name": "Insert + Remove (100 elements)",
+            "value": 114.31,
+            "range": "± 0.48",
+            "unit": "M links/sec",
+            "extra": "category=Trees tree=SBT ops=200 time=1749.60ns"
+          },
+          {
+            "name": "Insert + Remove (1000 elements)",
+            "value": 80.5,
+            "range": "± 0.75",
+            "unit": "M links/sec",
+            "extra": "category=Trees tree=SBT ops=2000 time=24846.00ns"
+          },
+          {
+            "name": "Insert + Remove (10000 elements)",
+            "value": 62.99,
+            "range": "± 0.14",
+            "unit": "M links/sec",
+            "extra": "category=Trees tree=SBT ops=20000 time=317520.00ns"
+          },
+          {
+            "name": "Insert Only (100 elements)",
+            "value": 68.42,
+            "range": "± 0.2",
+            "unit": "M links/sec",
+            "extra": "category=Trees tree=ART ops=100 time=1461.50ns"
+          },
+          {
+            "name": "Insert Only (1000 elements)",
+            "value": 62.84,
+            "range": "± 0.46",
+            "unit": "M links/sec",
+            "extra": "category=Trees tree=ART ops=1000 time=15914.00ns"
+          },
+          {
+            "name": "Insert Only (10000 elements)",
+            "value": 62.48,
+            "range": "± 0.03",
+            "unit": "M links/sec",
+            "extra": "category=Trees tree=ART ops=10000 time=160040.00ns"
+          },
+          {
+            "name": "Search Links",
+            "value": 126.92,
+            "range": "± 0.5",
+            "unit": "M links/sec",
+            "extra": "category=Doublets tree=N/A ops=200 time=1575.80ns"
+          },
+          {
+            "name": "Search Links",
+            "value": 121.05,
+            "range": "± 0.06",
+            "unit": "M links/sec",
+            "extra": "category=Doublets tree=N/A ops=2000 time=16522.00ns"
+          },
+          {
+            "name": "Search Links",
+            "value": 120.13,
+            "range": "± 0.08",
+            "unit": "M links/sec",
+            "extra": "category=Doublets tree=N/A ops=20000 time=166480.00ns"
+          },
+          {
+            "name": "Insert + Remove (100 elements)",
+            "value": 118.8,
+            "range": "± 0.08",
+            "unit": "M links/sec",
+            "extra": "category=Trees tree=ART ops=200 time=1683.50ns"
+          },
+          {
+            "name": "Insert + Remove (1000 elements)",
+            "value": 113.1,
+            "range": "± 0.1",
+            "unit": "M links/sec",
+            "extra": "category=Trees tree=ART ops=2000 time=17684.00ns"
+          },
+          {
+            "name": "Insert + Remove (10000 elements)",
+            "value": 112.35,
+            "range": "± 0.13",
+            "unit": "M links/sec",
+            "extra": "category=Trees tree=ART ops=20000 time=178020.00ns"
           }
         ]
       }
