@@ -122,7 +122,3 @@ impl<T: Idx> Tree<T> for ArtStore<T> {
 }
 
 impl<T: Idx> AdaptiveRadix<T> for ArtStore<T> {}
-
-// ArtStore also implements SizeBalanced for trait bound compatibility,
-// even though it uses ART insert/remove in practice
-impl<T: Idx> SizeBalanced<T> for ArtStore<T> {}
