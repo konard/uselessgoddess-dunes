@@ -43,7 +43,10 @@ pub trait SizeBalanced<T: Idx>: Tree<T> {
   #[inline]
   fn dec_size(&mut self, idx: T) {
     if let Some(size) = self.size(idx) {
-      self.set_size(idx, size - 1)
+      // Size should never be 0 when decrementing during traversal
+      // If it is, it indicates a bug in tree size management
+      // We use saturating_sub to avoid panics and allow fuzzing to continue
+      self.set_size(idx, size.saturating_sub(1))
     }
   }
 

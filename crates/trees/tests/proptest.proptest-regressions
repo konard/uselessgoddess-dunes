@@ -7,3 +7,5 @@
 cc 0ccbb61d589cbb1ccdcf46755691e0fb00b70504d4074f61f3d5352b08716909 # shrinks to values = {16, 29, 11, 15, 17}, cycles = 1
 cc 75441a2d8f33231e0bc37eb9a055e5edf5c385454d693c4ab240072a64660549 # shrinks to ops = [(136, true), (1, false), (1, false), (1, false), (1, false), (1, false), (1, false), (1, false), (1, false), (1, false), (1, false), (1, false), (1, true), (137, true), (2, false), (2, false), (136, false), (1, false), (1, false), (1, false)]
 cc e5ad1054b301e2f5e22715d726a95270c8bc3ec01886c715468f92922e737b79 # shrinks to ops = [(92, true), (1, true), (92, true)]
+cc 9590856d934b1fe5815182ee54de2ab747c412e4b4ba11967046784e5ad7be51 # shrinks to values = {31, 40, 47, 43, 38, 48, 29, 35, 17, 13, 32, 42}, cycles = 3
+cc d894c9c952e999e2e3ea6020d1842079058ef2a4a72a53e5c5820dc4b9d7d35e # shrinks to ops = [(92, true), (82, true), (32, true), (33, true), (93, true), (2, true), (31, true), (89, true), (4, false), (48, true), (73, true)]
