@@ -82,7 +82,8 @@ pub struct RawLink {
 unsafe impl bytemuck::Pod for RawLink {}
 unsafe impl bytemuck::Zeroable for RawLink {}
 
-/// Helper struct to implement Tree trait for source indexing with configurable strategy
+/// Helper struct to implement Tree trait for source indexing with
+/// configurable strategy
 struct SourceTree<'a, M: RawMem<Item = RawLink>, S> {
   mem: &'a mut M,
   _strategy: core::marker::PhantomData<S>,
@@ -140,7 +141,8 @@ impl<'a, M: RawMem<Item = RawLink>, S> AdaptiveRadix<usize>
 {
 }
 
-/// Helper struct to implement Tree trait for target indexing with configurable strategy
+/// Helper struct to implement Tree trait for target indexing with
+/// configurable strategy
 struct TargetTree<'a, M: RawMem<Item = RawLink>, S> {
   mem: &'a mut M,
   _strategy: core::marker::PhantomData<S>,
@@ -205,18 +207,24 @@ impl<'a, M: RawMem<Item = RawLink>, S> AdaptiveRadix<usize>
 /// # Type Parameters
 /// * `T` - Index type (usually usize)
 /// * `M` - Memory backend (default: heap allocation)
-/// * `SourceStrategy` - Tree strategy for source indexing (SbtStrategy or ArtStrategy)
-/// * `TargetStrategy` - Tree strategy for target indexing (SbtStrategy or ArtStrategy)
+/// * `SourceStrategy` - Tree strategy for source indexing
+///   (SbtStrategy or ArtStrategy)
+/// * `TargetStrategy` - Tree strategy for target indexing
+///   (SbtStrategy or ArtStrategy)
 ///
 /// # Examples
 /// ```
 /// use doublets::{SbtStrategy, ArtStrategy, create_heap_store_with_strategies};
 ///
 /// // Create a store with SBT for both source and target trees
-/// let mut sbt_store = create_heap_store_with_strategies::<usize, SbtStrategy, SbtStrategy>().unwrap();
+/// let mut sbt_store =
+///   create_heap_store_with_strategies::<usize, SbtStrategy, SbtStrategy>()
+///     .unwrap();
 ///
 /// // Create a store with mixed strategies
-/// let mut mixed_store = create_heap_store_with_strategies::<usize, SbtStrategy, ArtStrategy>().unwrap();
+/// let mut mixed_store =
+///   create_heap_store_with_strategies::<usize, SbtStrategy, ArtStrategy>()
+///     .unwrap();
 /// ```
 pub struct Store<
   T,
@@ -939,7 +947,8 @@ where
   }
 }
 
-/// Create a doublets store with heap allocation using SBT (Size-Balanced Tree) for both source and target trees
+/// Create a doublets store with heap allocation using SBT
+/// (Size-Balanced Tree) for both source and target trees
 pub fn create_heap_store<T>()
 -> Result<Store<T, Alloc<RawLink>, SbtStrategy, SbtStrategy>, T>
 where

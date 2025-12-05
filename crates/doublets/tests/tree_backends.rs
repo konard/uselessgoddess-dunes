@@ -1,16 +1,19 @@
 // Tests demonstrating tree backend selection for the doublets store
 //
-// This module tests the ability to choose between different tree implementations
-// (SBT - Size-Balanced Tree and ART - Adaptive Radix Tree) for source and target indexing.
+// This module tests the ability to choose between different tree
+// implementations (SBT - Size-Balanced Tree and ART - Adaptive Radix
+// Tree) for source and target indexing.
 //
 // Users can specify tree backends like:
 // - Store<T, M, SbtStrategy, SbtStrategy> - Both SBT (fully functional)
-// - Store<T, M, ArtStrategy, ArtStrategy> - Both ART (demonstration, search not yet implemented)
+// - Store<T, M, ArtStrategy, ArtStrategy> - Both ART (demonstration,
+//   search not yet implemented)
 // - Store<T, M, SbtStrategy, ArtStrategy> - Mixed strategies
 //
-// Note: ART implementation is currently a simplified demonstration and doesn't support
-// search operations. Only SBT backend is fully functional. Future work can complete the
-// ART implementation to make it fully operational.
+// Note: ART implementation is currently a simplified demonstration and
+// doesn't support search operations. Only SBT backend is fully
+// functional. Future work can complete the ART implementation to make it
+// fully operational.
 
 use doublets::{
   ArtStrategy, Doublets, Flow, Link, Links, Result, SbtStrategy,
