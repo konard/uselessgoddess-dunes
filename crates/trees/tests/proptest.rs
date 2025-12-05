@@ -6,10 +6,11 @@ use {
   trees::{SizeBalanced, Tree},
 };
 
-// Reduce test cases for faster CI/local testing
-// Default is 256 cases per test, we use 32 for basic tests
+// Comprehensive proptest cases to avoid corrupted tree bugs (issue #46)
+// Using 128 cases for good coverage while keeping CI times reasonable
+// For more extensive fuzzing, use cargo-fuzz (see crates/trees/fuzz/)
 proptest! {
-  #![proptest_config(ProptestConfig::with_cases(32))]
+  #![proptest_config(ProptestConfig::with_cases(128))]
 
   #[test]
   fn prop_insert_and_search(
@@ -83,10 +84,173 @@ proptest! {
     }
   }
 
-  // Note: More comprehensive property tests for remove operation were attempted
-  // but encountered issues due to the SBT implementation's expectations
-  // (following C# reference: assumes values exist before removal).
-  // The regression test below covers the specific bug from issue #44.
+  #[test]
+  fn prop_mixed_insert_remove_operations(
+    ops in prop::collection::vec(
+      (1usize..100, prop::bool::ANY),
+      1..50
+    )
+  ) {
+    let mut store: Store<usize> = Store::new(200);
+    let mut root = None;
+    let mut inserted_values = std::collections::HashSet::new();
+
+    for (value, is_insert) in ops {
+      if is_insert {
+        root = store.insert(root, value);
+        inserted_values.insert(value);
+      } else if inserted_values.contains(&value) {
+        root = store.remove(root, value);
+        inserted_values.remove(&value);
+      }
+    }
+
+    // Verify all remaining values can be found
+    if let Some(r) = root {
+      for &v in &inserted_values {
+        prop_assert!(store.contains(r, v), "Should contain {}", v);
+      }
+
+      // Verify tree size matches inserted values count
+      let size = store.size(r).unwrap();
+      prop_assert_eq!(size, inserted_values.len(),
+        "Tree size should match number of inserted values");
+    } else {
+      prop_assert!(inserted_values.is_empty(),
+        "Tree is empty but values remain: {:?}", inserted_values);
+    }
+  }
+
+  #[test]
+  fn prop_sequential_insert_then_remove_all(
+    values in prop::collection::hash_set(1usize..100, 5..30)
+  ) {
+    let vals: Vec<usize> = values.into_iter().collect();
+    let mut store: Store<usize> = Store::new(200);
+
+    // Insert all values
+    let mut root = None;
+    for &v in &vals {
+      root = store.insert(root, v);
+    }
+
+    // Remove all values in reverse order
+    for &v in vals.iter().rev() {
+      root = store.remove(root, v);
+    }
+
+    // Tree should be empty
+    prop_assert!(
+      root.is_none(),
+      "Tree should be empty after removing all values"
+    );
+  }
+
+  #[test]
+  fn prop_remove_reinsert_cycle(
+    values in prop::collection::hash_set(10usize..50, 5..15),
+    cycles in 1usize..5
+  ) {
+    let vals: Vec<usize> = values.into_iter().collect();
+    let mut store: Store<usize> = Store::new(200);
+
+    let mut root = None;
+
+    // Perform multiple cycles of insert/remove
+    for _ in 0..cycles {
+      // Insert all
+      for &v in &vals {
+        root = store.insert(root, v);
+      }
+
+      // Remove half
+      for &v in vals.iter().take(vals.len() / 2) {
+        root = store.remove(root, v);
+      }
+    }
+
+    // Verify remaining values
+    if let Some(r) = root {
+      for &v in vals.iter().skip(vals.len() / 2) {
+        prop_assert!(store.contains(r, v), "Should contain value {}", v);
+      }
+    }
+  }
+
+  #[test]
+  fn prop_tree_size_invariant(
+    values in prop::collection::hash_set(1usize..100, 10..40)
+  ) {
+    let vals: Vec<usize> = values.into_iter().collect();
+    let mut store: Store<usize> = Store::new(200);
+
+    let mut root = None;
+    for &v in &vals {
+      root = store.insert(root, v);
+    }
+
+    // Helper to count nodes recursively
+    fn count_nodes<T: trees::Idx>(
+      store: &Store<T>,
+      node: Option<T>
+    ) -> usize {
+      match node {
+        None => 0,
+        Some(n) => {
+          let left_count = count_nodes(store, store.left(n));
+          let right_count = count_nodes(store, store.right(n));
+          1 + left_count + right_count
+        }
+      }
+    }
+
+    if let Some(r) = root {
+      let stored_size = store.size(r).unwrap();
+      let actual_count = count_nodes(&store, Some(r));
+      prop_assert_eq!(stored_size, actual_count,
+        "Stored size should match actual node count");
+    }
+  }
+
+  // Note: Disabled temporarily - too slow for CI (investigating optimization)
+  #[test]
+  #[ignore]
+  fn prop_insert_remove_stress_test(
+    ops in prop::collection::vec(
+      (1usize..200, prop::bool::ANY),
+      20..80
+    )
+  ) {
+    let mut store: Store<usize> = Store::new(300);
+    let mut root = None;
+    let mut values = std::collections::HashSet::new();
+
+    for (value, is_insert) in ops {
+      if is_insert && !values.contains(&value) {
+        // Insert
+        root = store.insert(root, value);
+        values.insert(value);
+      } else if !is_insert && values.contains(&value) {
+        // Remove
+        root = store.remove(root, value);
+        values.remove(&value);
+      }
+    }
+
+    // Final verification
+    if let Some(r) = root {
+      let size = store.size(r).unwrap();
+      prop_assert_eq!(size, values.len(),
+        "Final tree size should match tracked values");
+
+      for &v in &values {
+        prop_assert!(store.contains(r, v),
+          "Tree should contain all tracked values: {}", v);
+      }
+    } else {
+      prop_assert!(values.is_empty(), "Empty tree should have no values");
+    }
+  }
 }
 
 #[test]
