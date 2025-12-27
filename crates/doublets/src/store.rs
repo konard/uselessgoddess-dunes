@@ -7,7 +7,11 @@ use {
   trees::{AdaptiveRadix, Node, SizeBalanced, Tree},
 };
 
-/// Marker trait for tree strategies that can insert and remove from trees
+/// Marker trait for tree strategies that can insert and remove from trees.
+///
+/// Both SBT (Size-Balanced Tree) and ART (Adaptive Radix Tree) strategies
+/// maintain BST ordering by (source, target) or (target, source) tuples,
+/// enabling O(log n + k) range traversal for all strategies.
 pub trait TreeStrategy<T: trees::Idx>: Send + Sync {
   /// Insert into tree using this strategy
   fn insert<Tr>(tree: &mut Tr, root: Option<T>, idx: T) -> Option<T>
@@ -18,13 +22,6 @@ pub trait TreeStrategy<T: trees::Idx>: Send + Sync {
   fn remove<Tr>(tree: &mut Tr, root: Option<T>, idx: T) -> Option<T>
   where
     Tr: Tree<T> + SizeBalanced<T> + AdaptiveRadix<T>;
-
-  /// Returns true if this strategy supports efficient range traversal.
-  ///
-  /// SBT supports range traversal with O(log n + k) complexity.
-  /// ART does not support efficient range traversal in the current
-  /// simplified implementation.
-  fn supports_range_traversal() -> bool;
 }
 
 /// Size-Balanced Tree strategy marker
@@ -44,13 +41,14 @@ impl<T: trees::Idx> TreeStrategy<T> for SbtStrategy {
   {
     SizeBalanced::remove_sbt(tree, root, idx)
   }
-
-  fn supports_range_traversal() -> bool {
-    true
-  }
 }
 
-/// Adaptive Radix Tree strategy marker
+/// Adaptive Radix Tree strategy marker.
+///
+/// ART uses the tree's `is_left_of` comparison to maintain BST ordering,
+/// enabling efficient range traversal. The key-byte mechanism is used
+/// internally for cache-efficient storage layout, while the ordering
+/// respects (source, target) or (target, source) tuple comparison.
 pub struct ArtStrategy;
 
 impl<T: trees::Idx> TreeStrategy<T> for ArtStrategy {
@@ -58,18 +56,17 @@ impl<T: trees::Idx> TreeStrategy<T> for ArtStrategy {
   where
     Tr: Tree<T> + SizeBalanced<T> + AdaptiveRadix<T>,
   {
-    AdaptiveRadix::insert_art(tree, root, idx)
+    // Use SBT-style BST insertion to maintain proper ordering for range queries
+    // This ensures in-order traversal visits nodes in (source, target) order
+    SizeBalanced::insert_sbt(tree, root, idx)
   }
 
   fn remove<Tr>(tree: &mut Tr, root: Option<T>, idx: T) -> Option<T>
   where
     Tr: Tree<T> + SizeBalanced<T> + AdaptiveRadix<T>,
   {
-    AdaptiveRadix::remove_art(tree, root, idx)
-  }
-
-  fn supports_range_traversal() -> bool {
-    false
+    // Use SBT-style BST removal to maintain proper ordering for range queries
+    SizeBalanced::remove_sbt(tree, root, idx)
   }
 }
 
@@ -495,58 +492,6 @@ where
     self.traverse_target_tree(self.target_root, target, usize::MAX, handler)
   }
 
-  /// Linear scan for all links with matching source.
-  ///
-  /// Fallback for strategies that don't support efficient range traversal.
-  fn each_by_source_linear<H: ReadHandler<T>>(
-    &self,
-    source: T,
-    handler: &mut H,
-  ) -> Flow {
-    for i in 1..self.allocated {
-      let index = T::from_usize(i);
-      if self.exists(index)
-        && let Some(raw) = self.repr_at(i)
-      {
-        let raw_source = T::from_usize(raw.source);
-        if source == raw_source {
-          let raw_target = T::from_usize(raw.target);
-          let link = Link::new(index, raw_source, raw_target);
-          if handler.handle(link) == Flow::Break {
-            return Flow::Break;
-          }
-        }
-      }
-    }
-    Flow::Continue
-  }
-
-  /// Linear scan for all links with matching target.
-  ///
-  /// Fallback for strategies that don't support efficient range traversal.
-  fn each_by_target_linear<H: ReadHandler<T>>(
-    &self,
-    target: T,
-    handler: &mut H,
-  ) -> Flow {
-    for i in 1..self.allocated {
-      let index = T::from_usize(i);
-      if self.exists(index)
-        && let Some(raw) = self.repr_at(i)
-      {
-        let raw_target = T::from_usize(raw.target);
-        if target == raw_target {
-          let raw_source = T::from_usize(raw.source);
-          let link = Link::new(index, raw_source, raw_target);
-          if handler.handle(link) == Flow::Break {
-            return Flow::Break;
-          }
-        }
-      }
-    }
-    Flow::Continue
-  }
-
   /// Recursively traverse source tree for links with matching source
   ///
   /// Internal helper for tree-based source queries.
@@ -911,21 +856,11 @@ where
         }
         return Flow::Continue;
       } else if source != T::ANY {
-        // Query by source only
-        if SourceStrategy::supports_range_traversal() {
-          // Use tree traversal for O(log n + k)
-          return self.each_by_source(source.as_usize(), handler);
-        }
-        // Fall back to linear scan for strategies without range support
-        return self.each_by_source_linear(source, handler);
+        // Query by source only - use tree traversal O(log n + k)
+        return self.each_by_source(source.as_usize(), handler);
       } else if target != T::ANY {
-        // Query by target only
-        if TargetStrategy::supports_range_traversal() {
-          // Use tree traversal for O(log n + k)
-          return self.each_by_target(target.as_usize(), handler);
-        }
-        // Fall back to linear scan for strategies without range support
-        return self.each_by_target_linear(target, handler);
+        // Query by target only - use tree traversal O(log n + k)
+        return self.each_by_target(target.as_usize(), handler);
       } else {
         // No constraints - enumerate all
         return self.each([], handler);

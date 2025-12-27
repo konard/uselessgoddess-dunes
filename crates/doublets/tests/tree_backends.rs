@@ -4,9 +4,9 @@
 // implementations (SBT - Size-Balanced Tree and ART - Adaptive Radix
 // Tree) for source and target indexing.
 //
-// NOTE: The exact search functionality uses the source tree. When using
-// ART as the source strategy, exact search may not work correctly yet.
-// This is a known limitation that should be addressed in future work.
+// Both strategies maintain BST ordering by (source, target) tuples,
+// enabling O(log n + k) range traversal and exact search for all
+// strategy combinations.
 
 use {
   doublets::{
@@ -62,8 +62,8 @@ macro_rules! define_tests_for_backend {
   };
 }
 
-/// Macro to generate SBT-specific tests that require exact search
-macro_rules! define_sbt_search_tests {
+/// Macro to generate exact search tests for all backends
+macro_rules! define_exact_search_tests {
   ($src:ty, $tgt:ty, $suffix:literal) => {
     paste::paste! {
       #[test]
@@ -172,8 +172,7 @@ where
   Ok(())
 }
 
-// Test exact search only for SBT source strategy
-// (ART exact search is not yet fully implemented)
+// Test exact search for all tree backend combinations
 fn test_exact_search<S, T>() -> Result<(), usize>
 where
   S: TreeStrategy<usize>,
@@ -184,7 +183,7 @@ where
   let b = store.create_point()?;
   let c = store.create_link(a, b)?;
 
-  // Exact search should work for SBT source strategy
+  // Exact search works for all tree strategies
   assert_eq!(store.search(a, b), Some(c));
   assert_eq!(store.search(b, a), None);
 
@@ -235,7 +234,8 @@ define_tests_for_backend!(ArtStrategy, ArtStrategy, "art_art");
 define_tests_for_backend!(SbtStrategy, ArtStrategy, "sbt_art");
 define_tests_for_backend!(ArtStrategy, SbtStrategy, "art_sbt");
 
-// Exact search tests only for SBT source strategy
-// (ART exact search via source tree is not yet implemented)
-define_sbt_search_tests!(SbtStrategy, SbtStrategy, "sbt_sbt");
-define_sbt_search_tests!(SbtStrategy, ArtStrategy, "sbt_art");
+// Exact search tests for all backend combinations
+define_exact_search_tests!(SbtStrategy, SbtStrategy, "sbt_sbt");
+define_exact_search_tests!(SbtStrategy, ArtStrategy, "sbt_art");
+define_exact_search_tests!(ArtStrategy, SbtStrategy, "art_sbt");
+define_exact_search_tests!(ArtStrategy, ArtStrategy, "art_art");
