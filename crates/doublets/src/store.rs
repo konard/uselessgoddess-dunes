@@ -18,6 +18,13 @@ pub trait TreeStrategy<T: trees::Idx>: Send + Sync {
   fn remove<Tr>(tree: &mut Tr, root: Option<T>, idx: T) -> Option<T>
   where
     Tr: Tree<T> + SizeBalanced<T> + AdaptiveRadix<T>;
+
+  /// Returns true if this strategy supports efficient range traversal.
+  ///
+  /// SBT supports range traversal with O(log n + k) complexity.
+  /// ART does not support efficient range traversal in the current
+  /// simplified implementation.
+  fn supports_range_traversal() -> bool;
 }
 
 /// Size-Balanced Tree strategy marker
@@ -37,6 +44,10 @@ impl<T: trees::Idx> TreeStrategy<T> for SbtStrategy {
   {
     SizeBalanced::remove_sbt(tree, root, idx)
   }
+
+  fn supports_range_traversal() -> bool {
+    true
+  }
 }
 
 /// Adaptive Radix Tree strategy marker
@@ -55,6 +66,10 @@ impl<T: trees::Idx> TreeStrategy<T> for ArtStrategy {
     Tr: Tree<T> + SizeBalanced<T> + AdaptiveRadix<T>,
   {
     AdaptiveRadix::remove_art(tree, root, idx)
+  }
+
+  fn supports_range_traversal() -> bool {
+    false
   }
 }
 
@@ -461,9 +476,6 @@ where
   /// Traverse source tree for all links with matching source.
   ///
   /// Provides O(log n + k) performance where k is the number of matches.
-  /// Currently unused in favor of linear scan due to tree corruption
-  /// issues in some edge cases. Kept for future optimization.
-  #[allow(dead_code)]
   fn each_by_source<H: ReadHandler<T>>(
     &self,
     source: usize,
@@ -475,9 +487,6 @@ where
   /// Traverse target tree for all links with matching target.
   ///
   /// Provides O(log n + k) performance where k is the number of matches.
-  /// Currently unused in favor of linear scan due to tree corruption
-  /// issues in some edge cases. Kept for future optimization.
-  #[allow(dead_code)]
   fn each_by_target<H: ReadHandler<T>>(
     &self,
     target: usize,
@@ -486,10 +495,61 @@ where
     self.traverse_target_tree(self.target_root, target, usize::MAX, handler)
   }
 
+  /// Linear scan for all links with matching source.
+  ///
+  /// Fallback for strategies that don't support efficient range traversal.
+  fn each_by_source_linear<H: ReadHandler<T>>(
+    &self,
+    source: T,
+    handler: &mut H,
+  ) -> Flow {
+    for i in 1..self.allocated {
+      let index = T::from_usize(i);
+      if self.exists(index)
+        && let Some(raw) = self.repr_at(i)
+      {
+        let raw_source = T::from_usize(raw.source);
+        if source == raw_source {
+          let raw_target = T::from_usize(raw.target);
+          let link = Link::new(index, raw_source, raw_target);
+          if handler.handle(link) == Flow::Break {
+            return Flow::Break;
+          }
+        }
+      }
+    }
+    Flow::Continue
+  }
+
+  /// Linear scan for all links with matching target.
+  ///
+  /// Fallback for strategies that don't support efficient range traversal.
+  fn each_by_target_linear<H: ReadHandler<T>>(
+    &self,
+    target: T,
+    handler: &mut H,
+  ) -> Flow {
+    for i in 1..self.allocated {
+      let index = T::from_usize(i);
+      if self.exists(index)
+        && let Some(raw) = self.repr_at(i)
+      {
+        let raw_target = T::from_usize(raw.target);
+        if target == raw_target {
+          let raw_source = T::from_usize(raw.source);
+          let link = Link::new(index, raw_source, raw_target);
+          if handler.handle(link) == Flow::Break {
+            return Flow::Break;
+          }
+        }
+      }
+    }
+    Flow::Continue
+  }
+
   /// Recursively traverse source tree for links with matching source
   ///
   /// Internal helper for tree-based source queries.
-  #[allow(dead_code)]
   fn traverse_source_tree<H: ReadHandler<T>>(
     &self,
     current: Option<usize>,
@@ -607,7 +667,6 @@ where
   /// Recursively traverse target tree for links with matching target
   ///
   /// Internal helper for tree-based target queries.
-  #[allow(dead_code)]
   fn traverse_target_tree<H: ReadHandler<T>>(
     &self,
     current: Option<usize>,
@@ -851,29 +910,22 @@ where
           return handler.handle(link);
         }
         return Flow::Continue;
-      } else if source != T::ANY || target != T::ANY {
-        // Wildcard queries - use linear scan due to SBT corruption bugs
-        // TODO: Fix SBT remove bugs or switch to ART to enable tree traversal
-        for i in 1..self.allocated {
-          let index = T::from_usize(i);
-          if self.exists(index)
-            && let Some(raw) = self.repr_at(i)
-          {
-            let raw_source = T::from_usize(raw.source);
-            let raw_target = T::from_usize(raw.target);
-
-            let matches = (source == T::ANY || source == raw_source)
-              && (target == T::ANY || target == raw_target);
-
-            if matches {
-              let link = Link::new(index, raw_source, raw_target);
-              if handler.handle(link) == Flow::Break {
-                return Flow::Break;
-              }
-            }
-          }
+      } else if source != T::ANY {
+        // Query by source only
+        if SourceStrategy::supports_range_traversal() {
+          // Use tree traversal for O(log n + k)
+          return self.each_by_source(source.as_usize(), handler);
         }
-        return Flow::Continue;
+        // Fall back to linear scan for strategies without range support
+        return self.each_by_source_linear(source, handler);
+      } else if target != T::ANY {
+        // Query by target only
+        if TargetStrategy::supports_range_traversal() {
+          // Use tree traversal for O(log n + k)
+          return self.each_by_target(target.as_usize(), handler);
+        }
+        // Fall back to linear scan for strategies without range support
+        return self.each_by_target_linear(target, handler);
       } else {
         // No constraints - enumerate all
         return self.each([], handler);
