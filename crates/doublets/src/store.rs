@@ -458,11 +458,11 @@ where
     }
   }
 
-  /// Traverse source tree calling handler for all links with matching source
+  /// Traverse source tree for all links with matching source.
   ///
-  /// Provides O(log n + k) performance for source-based queries where k
-  /// is the number of matches. Currently unused in favor of linear scan due
-  /// to tree corruption issues in some edge cases. Kept for future optimization.
+  /// Provides O(log n + k) performance where k is the number of matches.
+  /// Currently unused in favor of linear scan due to tree corruption
+  /// issues in some edge cases. Kept for future optimization.
   #[allow(dead_code)]
   fn each_by_source<H: ReadHandler<T>>(
     &self,
@@ -472,11 +472,11 @@ where
     self.traverse_source_tree(self.source_root, source, usize::MAX, handler)
   }
 
-  /// Traverse target tree calling handler for all links with matching target
+  /// Traverse target tree for all links with matching target.
   ///
-  /// Provides O(log n + k) performance for target-based queries where k
-  /// is the number of matches. Currently unused in favor of linear scan due
-  /// to tree corruption issues in some edge cases. Kept for future optimization.
+  /// Provides O(log n + k) performance where k is the number of matches.
+  /// Currently unused in favor of linear scan due to tree corruption
+  /// issues in some edge cases. Kept for future optimization.
   #[allow(dead_code)]
   fn each_by_target<H: ReadHandler<T>>(
     &self,

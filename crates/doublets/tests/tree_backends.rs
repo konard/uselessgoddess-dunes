@@ -8,11 +8,13 @@
 // ART as the source strategy, exact search may not work correctly yet.
 // This is a known limitation that should be addressed in future work.
 
-use doublets::{
-  ArtStrategy, Doublets, Flow, Link, Links, RawLink, Result, SbtStrategy, Store,
-  TreeStrategy,
+use {
+  doublets::{
+    ArtStrategy, Doublets, Flow, Link, Links, RawLink, Result, SbtStrategy,
+    Store, TreeStrategy,
+  },
+  mem::Alloc,
 };
-use mem::Alloc;
 
 /// Helper to create a store with custom tree strategies
 fn create_store<S, T>() -> Result<Store<usize, Alloc<RawLink>, S, T>, usize>

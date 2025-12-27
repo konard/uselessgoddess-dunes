@@ -3,8 +3,10 @@
 // These tests verify the correctness of the store under various random
 // operation sequences, ensuring invariants are maintained.
 
-use doublets::{Doublets, Flow, Link, Links, create_heap_store};
-use proptest::prelude::*;
+use {
+  doublets::{Doublets, Flow, Link, Links, create_heap_store},
+  proptest::prelude::*,
+};
 
 /// Generate a sequence of store operations
 #[derive(Debug, Clone)]
@@ -44,7 +46,9 @@ proptest! {
 
   /// Test that count is always consistent with actual links
   #[test]
-  fn prop_count_consistency(ops in prop::collection::vec(arb_store_op(), 1..15)) {
+  fn prop_count_consistency(
+    ops in prop::collection::vec(arb_store_op(), 1..15)
+  ) {
     let mut store = create_heap_store::<usize>().unwrap();
     let mut created_links: Vec<usize> = Vec::new();
 
@@ -102,7 +106,7 @@ proptest! {
         }
       }
 
-      // Invariant: count_all should match collected links that still exist
+      // Invariant: count_all should match collected links
       let actual_count = store.count_all();
       let mut existing_count = 0usize;
       store.each([], &mut |_: Link<usize>| {
@@ -115,7 +119,10 @@ proptest! {
 
   /// Test that search returns correct results
   #[test]
-  fn prop_search_correctness(num_points in 2..20usize, num_links in 0..50usize) {
+  fn prop_search_correctness(
+    num_points in 2..20usize,
+    num_links in 0..50usize
+  ) {
     let mut store = create_heap_store::<usize>().unwrap();
     let mut points = Vec::new();
 
@@ -136,15 +143,21 @@ proptest! {
     for (idx, source, target) in &created_links {
       if store.get(*idx).is_some() {
         let found = store.search(*source, *target);
-        // If the link exists, search should find it (or another link with same source/target)
-        prop_assert!(found.is_some(), "Link {}: {} -> {} not found", idx, source, target);
+        // Search should find it or another with same source/target
+        prop_assert!(
+          found.is_some(),
+          "Link {}: {} -> {} not found",
+          idx, source, target
+        );
       }
     }
   }
 
   /// Test that get returns consistent data
   #[test]
-  fn prop_get_consistency(ops in prop::collection::vec(arb_store_op(), 1..50)) {
+  fn prop_get_consistency(
+    ops in prop::collection::vec(arb_store_op(), 1..50)
+  ) {
     let mut store = create_heap_store::<usize>().unwrap();
     let mut created_links: Vec<usize> = Vec::new();
 
@@ -196,11 +209,10 @@ proptest! {
       points.push(store.create_point().unwrap());
     }
 
-    // Create a link between two different points (not points themselves)
+    // Create a link between two different points
     let link_idx = store.create_link(points[0], points[1]).unwrap();
 
-    // Update to new source/target that aren't point self-references
-    // Use indices 2 and 3 to ensure they're different from the points' self-refs
+    // Update to new source/target (indices 2 and 3)
     let new_source = points[2];
     let new_target = points[3];
     store.update_link(link_idx, new_source, new_target).unwrap();
@@ -215,18 +227,10 @@ proptest! {
     let old_search = store.search(points[0], points[1]);
     prop_assert!(old_search.is_none() || old_search != Some(link_idx));
 
-    // New source/target search should find this link
-    // Note: search may find another link if one already exists with same source/target
+    // New source/target search should find some link
     let new_search = store.search(new_source, new_target);
-    // The search should find SOME link with the new source/target
     prop_assert!(new_search.is_some());
-    // If it finds a different link, that's fine as long as our link has correct data
-    if new_search == Some(link_idx) {
-      // Great, we found exactly our link
-    } else {
-      // There was another link with same source/target - that's ok for points
-      // Just verify our link still has the correct data (already done above)
-    }
+    // It may find a different link if one exists with same src/tgt
   }
 
   /// Test that delete removes link completely
@@ -271,7 +275,10 @@ proptest! {
 
   /// Test get_or_create idempotency
   #[test]
-  fn prop_get_or_create_idempotent(num_points in 2..10usize, repetitions in 1..10usize) {
+  fn prop_get_or_create_idempotent(
+    num_points in 2..10usize,
+    repetitions in 1..10usize
+  ) {
     let mut store = create_heap_store::<usize>().unwrap();
     let mut points = Vec::new();
 
@@ -286,7 +293,7 @@ proptest! {
     let first_idx = store.get_or_create(source, target).unwrap();
     let initial_count = store.count_all();
 
-    // Subsequent calls should return same index without creating new links
+    // Subsequent calls should return same index
     for _ in 0..repetitions {
       let idx = store.get_or_create(source, target).unwrap();
       prop_assert_eq!(idx, first_idx);
@@ -323,7 +330,8 @@ fn test_rebase_correctness() {
 fn test_count_usages() {
   let mut store = create_heap_store::<usize>().unwrap();
 
-  let a = store.create_point().unwrap(); // Self-referencing: source=a, target=a
+  // Self-referencing: source=a, target=a
+  let a = store.create_point().unwrap();
   let b = store.create_point().unwrap();
 
   // 'a' is used by itself (point), so usages should be 0 (excluding self)
@@ -335,9 +343,9 @@ fn test_count_usages() {
   let usages_a_after = store.count_usages(a).unwrap();
   assert_eq!(usages_a_after, 1);
 
-  // Create link from a to b - 'a' has 2 usages: 1 as target (c), 1 as source (d)
-  // count_usages sums usage as source and as target
+  // Create link from a to b - 'a' has 2 usages:
+  // 1 as target (c), 1 as source (d)
   let _d = store.create_link(a, b).unwrap();
   let usages_a_final = store.count_usages(a).unwrap();
-  assert_eq!(usages_a_final, 2); // 1 (target in c) + 1 (source in d)
+  assert_eq!(usages_a_final, 2);
 }
